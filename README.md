@@ -38,14 +38,16 @@ Info.plist        Document types for Xcode app bundle
 
 ```bash
 brew tap laboritdev/tap
+brew trust laboritdev/tap
 brew install --cask byword-editor
 ```
 
-### GitHub Release
+If macOS shows **"damaged and can't be opened"**, the build is not yet notarized. See [packaging/SIGNING.md](packaging/SIGNING.md). Temporary fix:
 
-Download the latest `BywordEditor-<version>-macos-arm64.zip` from [Releases](https://github.com/laboritdev/byword-editor/releases), unzip, and move `BywordEditor.app` to `/Applications`.
-
-On first launch, macOS may block unsigned apps: **System Settings → Privacy & Security → Open Anyway**.
+```bash
+xattr -cr /Applications/BywordEditor.app
+open /Applications/BywordEditor.app
+```
 
 ## Release (maintainers)
 
