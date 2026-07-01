@@ -7,7 +7,7 @@ cask "byword-editor" do
   desc "Minimalist Markdown editor for macOS"
   homepage "https://github.com/laboritdev/byword-editor"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "BywordEditor.app"
 

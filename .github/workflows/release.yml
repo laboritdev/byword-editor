@@ -27,9 +27,30 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VERSION}"
 
-      - name: Build app bundle
+      - name: Import signing certificate
+        env:
+          MACOS_BUILD_CERTIFICATE: ${{ secrets.MACOS_BUILD_CERTIFICATE }}
+          MACOS_P12_PASSWORD: ${{ secrets.MACOS_P12_PASSWORD }}
         run: |
-          chmod +x Scripts/build-app.sh Scripts/update-homebrew-cask.sh
+          if [[ -z "${MACOS_BUILD_CERTIFICATE}" ]]; then
+            echo "MACOS_BUILD_CERTIFICATE not set; release will use ad-hoc signing."
+            exit 0
+          fi
+          echo "$MACOS_BUILD_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security import "$RUNNER_TEMP/certificate.p12" -k build.keychain \
+            -P "$MACOS_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+
+      - name: Build app bundle
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          chmod +x Scripts/build-app.sh Scripts/update-homebrew-cask.sh Scripts/sign-app.sh
           ./Scripts/build-app.sh "${{ steps.version.outputs.version }}" arm64
 
       - name: Read artifact metadata

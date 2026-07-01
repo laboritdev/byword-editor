@@ -33,6 +33,9 @@ cp "$ROOT/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
 cp "$BINARY" "$APP_BUNDLE/Contents/MacOS/${APP_NAME}"
 chmod +x "$APP_BUNDLE/Contents/MacOS/${APP_NAME}"
 
+chmod +x "$ROOT/Scripts/sign-app.sh"
+"$ROOT/Scripts/sign-app.sh" "$APP_BUNDLE"
+
 ZIP_NAME="${APP_NAME}-${VERSION}-macos-${ARCH}.zip"
 ZIP_PATH="$DIST_DIR/${ZIP_NAME}"
 
