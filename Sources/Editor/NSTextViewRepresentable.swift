@@ -8,7 +8,7 @@ protocol EditorTextViewDelegate: AnyObject {
     func editorScrollDidChange(offset: Double)
 }
 
-struct EditorConfiguration {
+struct EditorConfiguration: Equatable {
     var font: NSFont
     var textColor: NSColor
     var backgroundColor: NSColor
@@ -16,6 +16,17 @@ struct EditorConfiguration {
     var horizontalMargin: CGFloat
     var columnWidth: CGFloat
     var syntaxColors: EditorColorsNS
+
+    static func == (lhs: EditorConfiguration, rhs: EditorConfiguration) -> Bool {
+        lhs.font.fontName == rhs.font.fontName
+            && lhs.font.pointSize == rhs.font.pointSize
+            && lhs.textColor == rhs.textColor
+            && lhs.backgroundColor == rhs.backgroundColor
+            && lhs.lineHeight == rhs.lineHeight
+            && lhs.horizontalMargin == rhs.horizontalMargin
+            && lhs.columnWidth == rhs.columnWidth
+            && lhs.syntaxColors == rhs.syntaxColors
+    }
 }
 
 struct NSTextViewRepresentable: NSViewRepresentable {
@@ -34,7 +45,10 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         scrollView.drawsBackground = false
 
         let textView = MarkdownTextView()
+        textView.isEditable = true
+        textView.isSelectable = true
         textView.isRichText = true
+        textView.drawsBackground = true
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
@@ -65,6 +79,10 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         context.coordinator.applyConfiguration(configuration)
         context.coordinator.setText(text, cursorLocation: cursorLocation, selectionLength: selectionLength)
 
+        DispatchQueue.main.async {
+            textView.window?.makeFirstResponder(textView)
+        }
+
         NotificationCenter.default.addObserver(
             context.coordinator,
             selector: #selector(Coordinator.scrollViewDidScroll(_:)),
@@ -79,7 +97,11 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         guard scrollView.documentView is MarkdownTextView else { return }
         context.coordinator.parent = self
         context.coordinator.delegate = delegate
-        context.coordinator.applyConfiguration(configuration)
+
+        if context.coordinator.lastConfiguration != configuration {
+            context.coordinator.lastConfiguration = configuration
+            context.coordinator.applyConfiguration(configuration)
+        }
 
         if context.coordinator.lastKnownText != text {
             context.coordinator.setText(text, cursorLocation: cursorLocation, selectionLength: selectionLength)
@@ -102,6 +124,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         weak var delegate: EditorTextViewDelegate?
         var lastKnownText: String = ""
         var lastScrollOffset: Double = 0
+        var lastConfiguration: EditorConfiguration?
         private let highlighter = MarkdownSyntaxHighlighter()
         private var isUpdating = false
 
@@ -112,6 +135,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         func applyConfiguration(_ configuration: EditorConfiguration) {
             guard let textView else { return }
             textView.backgroundColor = configuration.backgroundColor
+            textView.textColor = configuration.textColor
             textView.insertionPointColor = configuration.textColor
             textView.selectedTextAttributes = [
                 .backgroundColor: NSColor.selectedTextBackgroundColor,
