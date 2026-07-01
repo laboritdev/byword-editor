@@ -27,12 +27,12 @@ final class MarkdownSyntaxHighlighter {
         storage.addAttributes(
             [
                 .font: baseStyle.font,
-                .foregroundColor: baseStyle.foregroundColor,
+                .foregroundColor: baseStyle.foregroundColor.editorFixed,
             ],
             range: range
         )
         if let background = baseStyle.backgroundColor {
-            storage.addAttribute(.backgroundColor, value: background, range: range)
+            storage.addAttribute(.backgroundColor, value: background.editorFixed, range: range)
         }
 
         applyRule(storage, range, pattern: "^#{1,6}\\s.+$", options: [.anchorsMatchLines], color: colors.heading, font: boldFont(from: baseStyle.font))
@@ -64,12 +64,12 @@ final class MarkdownSyntaxHighlighter {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: options) else { return }
         let matches = regex.matches(in: storage.string, options: [], range: range)
         for match in matches {
-            storage.addAttribute(.foregroundColor, value: color, range: match.range)
+            storage.addAttribute(.foregroundColor, value: color.editorFixed, range: match.range)
             if let font {
                 storage.addAttribute(.font, value: font, range: match.range)
             }
             if let background {
-                storage.addAttribute(.backgroundColor, value: background, range: match.range)
+                storage.addAttribute(.backgroundColor, value: background.editorFixed, range: match.range)
             }
         }
     }
