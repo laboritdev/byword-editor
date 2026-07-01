@@ -12,9 +12,9 @@ cd "$ROOT"
 
 echo "Building ${APP_NAME} ${VERSION} (${ARCH})…"
 
-swift build -c release
+xcrun swift build -c release --product BywordEditor
 
-BIN_DIR="$(swift build -c release --show-bin-path)"
+BIN_DIR="$(xcrun swift build -c release --product BywordEditor --show-bin-path)"
 BINARY="$BIN_DIR/${APP_NAME}"
 
 if [[ ! -f "$BINARY" ]]; then
