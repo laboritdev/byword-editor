@@ -78,7 +78,8 @@ struct MarkdownEditorView: View {
             lineHeight: prefs.lineHeight,
             horizontalMargin: prefs.horizontalMargin,
             columnWidth: prefs.columnWidth,
-            syntaxColors: colors
+            syntaxColors: colors,
+            isDarkMode: resolvedColorScheme == .dark
         )
     }
 

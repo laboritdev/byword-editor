@@ -70,7 +70,7 @@ struct EditorColorsNS: Equatable {
     }
 
     private static func nsColor(red: CGFloat, green: CGFloat, blue: CGFloat) -> NSColor {
-        NSColor(srgbRed: red, green: green, blue: blue, alpha: 1)
+        EditorColorFactory.rgb(red: red, green: green, blue: blue)
     }
 }
 

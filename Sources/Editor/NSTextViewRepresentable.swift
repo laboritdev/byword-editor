@@ -16,16 +16,18 @@ struct EditorConfiguration: Equatable {
     var horizontalMargin: CGFloat
     var columnWidth: CGFloat
     var syntaxColors: EditorColorsNS
+    var isDarkMode: Bool
 
     static func == (lhs: EditorConfiguration, rhs: EditorConfiguration) -> Bool {
         lhs.font.fontName == rhs.font.fontName
             && lhs.font.pointSize == rhs.font.pointSize
-            && lhs.textColor == rhs.textColor
-            && lhs.backgroundColor == rhs.backgroundColor
+            && lhs.textColor.isEditorEqual(to: rhs.textColor)
+            && lhs.backgroundColor.isEditorEqual(to: rhs.backgroundColor)
             && lhs.lineHeight == rhs.lineHeight
             && lhs.horizontalMargin == rhs.horizontalMargin
             && lhs.columnWidth == rhs.columnWidth
             && lhs.syntaxColors == rhs.syntaxColors
+            && lhs.isDarkMode == rhs.isDarkMode
     }
 }
 
@@ -42,7 +44,10 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .noBorder
         scrollView.autohidesScrollers = true
-        scrollView.drawsBackground = false
+        scrollView.drawsBackground = true
+        scrollView.appearance = NSAppearance(
+            named: configuration.isDarkMode ? .darkAqua : .aqua
+        )
 
         let textView = MarkdownTextView()
         textView.isEditable = true
@@ -134,15 +139,29 @@ struct NSTextViewRepresentable: NSViewRepresentable {
 
         func applyConfiguration(_ configuration: EditorConfiguration) {
             guard let textView else { return }
-            textView.backgroundColor = configuration.backgroundColor
-            textView.textColor = configuration.textColor
-            textView.insertionPointColor = configuration.textColor
+
+            let textColor = configuration.textColor.editorFixed
+            let backgroundColor = configuration.backgroundColor.editorFixed
+            let font = configuration.font
+
+            let appearance = NSAppearance(named: configuration.isDarkMode ? .darkAqua : .aqua)
+            textView.appearance = appearance
+            scrollView?.appearance = appearance
+            scrollView?.backgroundColor = backgroundColor
+            scrollView?.contentView.drawsBackground = true
+            scrollView?.contentView.backgroundColor = backgroundColor
+            textView.usesAdaptiveColorMappingForDarkAppearance = false
+            textView.backgroundColor = backgroundColor
+            textView.textColor = textColor
+            textView.font = font
+            textView.insertionPointColor = textColor
             textView.selectedTextAttributes = [
                 .backgroundColor: NSColor.selectedTextBackgroundColor,
+                .foregroundColor: textColor,
             ]
             textView.typingAttributes = [
-                .font: configuration.font,
-                .foregroundColor: configuration.textColor,
+                .font: font,
+                .foregroundColor: textColor,
             ]
             textView.textContainer?.containerSize = NSSize(
                 width: configuration.columnWidth,
@@ -150,6 +169,14 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             )
             textView.textContainerInset = NSSize(width: configuration.horizontalMargin, height: 48)
             refreshHighlighting(configuration: configuration)
+            textView.needsDisplay = true
+        }
+
+        private func baseAttributes(for configuration: EditorConfiguration) -> [NSAttributedString.Key: Any] {
+            [
+                .font: configuration.font,
+                .foregroundColor: configuration.textColor.editorFixed,
+            ]
         }
 
         func setText(_ text: String, cursorLocation: Int, selectionLength: Int) {
@@ -158,7 +185,11 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             defer { isUpdating = false }
 
             if storage.string != text {
-                storage.setAttributedString(NSAttributedString(string: text))
+                let attributed = NSAttributedString(
+                    string: text,
+                    attributes: baseAttributes(for: parent.configuration)
+                )
+                storage.setAttributedString(attributed)
                 refreshHighlighting(configuration: parent.configuration)
             }
 
@@ -182,13 +213,24 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             delegate?.editorScrollDidChange(offset: offset)
         }
 
+        func textView(
+            _ textView: NSTextView,
+            shouldChangeTextIn affectedCharRange: NSRange,
+            replacementString: String?
+        ) -> Bool {
+            textView.typingAttributes = baseAttributes(for: parent.configuration)
+            return true
+        }
+
         func textDidChange(_ notification: Notification) {
             guard !isUpdating, let textView else { return }
             let newText = textView.string
             lastKnownText = newText
             parent.text = newText
             delegate?.editorTextDidChange(newText)
+            textView.typingAttributes = baseAttributes(for: parent.configuration)
             refreshHighlighting(configuration: parent.configuration)
+            textView.needsDisplay = true
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
@@ -202,7 +244,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             let range = NSRange(location: 0, length: storage.length)
             let baseStyle = SyntaxStyle(
                 font: configuration.font,
-                foregroundColor: configuration.textColor,
+                foregroundColor: configuration.textColor.editorFixed,
                 backgroundColor: nil
             )
             highlighter.applyHighlighting(
