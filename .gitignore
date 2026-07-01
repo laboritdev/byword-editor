@@ -1,0 +1,65 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.pins
+*.xcodeproj
+
+# Xcode
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+xcuserdata/
+*.xcuserstate
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+
+# Editor / IDE
+.idea/
+*.swp
+*~
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Environment & secrets
+.env
+.env.*
+*.pem
+*.p12
+
+# Test / coverage artifacts
+*.profraw
+*.profdata
+.coverage/
+htmlcov/
+*.gcno
+*.gcda
+
+# Misc build artifacts
+dist/
+*.o
+*.lo
+*.la
+*.a
+*.so
+*.dylib
+
+# Keep project specs and important files (not ignored):
+# .specs/
+# Package.resolved
+# Info.plist
+# Package.swift

@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: xcrun swift build
+
+      - name: Test
+        run: xcrun swift test
+
+      - name: Build release app bundle
+        run: ./Scripts/build-app.sh "$(tr -d '[:space:]' < VERSION)" arm64
