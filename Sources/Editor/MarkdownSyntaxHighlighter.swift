@@ -82,28 +82,3 @@ final class MarkdownSyntaxHighlighter {
         NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
     }
 }
-
-struct EditorColorsNS {
-    let heading: NSColor
-    let bold: NSColor
-    let italic: NSColor
-    let link: NSColor
-    let code: NSColor
-    let codeBlockBackground: NSColor
-    let blockquote: NSColor
-    let listMarker: NSColor
-    let horizontalRule: NSColor
-
-    init(from colors: EditorColors, colorScheme: ColorScheme) {
-        heading = NSColor(colors.heading)
-        bold = NSColor(colors.bold)
-        italic = NSColor(colors.italic)
-        link = NSColor(colors.link)
-        code = NSColor(colors.code)
-        codeBlockBackground = NSColor(colors.codeBlockBackground)
-        blockquote = NSColor(colors.blockquote)
-        listMarker = NSColor(colors.listMarker)
-        horizontalRule = NSColor(colors.horizontalRule)
-        _ = colorScheme
-    }
-}

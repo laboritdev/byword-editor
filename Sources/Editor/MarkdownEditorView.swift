@@ -70,15 +70,15 @@ struct MarkdownEditorView: View {
 
     private var editorConfiguration: EditorConfiguration {
         let prefs = preferencesStore.preferences
-        let colors = EditorColors.colors(for: resolvedColorScheme)
+        let colors = EditorColorsNS.colors(for: resolvedColorScheme)
         return EditorConfiguration(
             font: prefs.fontFamily.nsFont(size: prefs.fontSize),
-            textColor: NSColor(colors.text),
-            backgroundColor: NSColor(colors.background),
+            textColor: colors.text,
+            backgroundColor: colors.background,
             lineHeight: prefs.lineHeight,
             horizontalMargin: prefs.horizontalMargin,
             columnWidth: prefs.columnWidth,
-            syntaxColors: EditorColorsNS(from: colors, colorScheme: resolvedColorScheme)
+            syntaxColors: colors
         )
     }
 
