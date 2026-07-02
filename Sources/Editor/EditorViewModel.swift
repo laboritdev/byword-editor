@@ -328,7 +328,6 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
             : DocumentStructureService.mapCursor(from: text, to: markdown, cursor: previousCursor)
 
         editorText = markdown
-        editorRevision += 1
         mutateSnapshot {
             $0.content = markdown
             $0.cursorLocation = cursor

@@ -85,7 +85,6 @@ struct MarkdownEditorView: View {
                 onToggleCheckbox: { viewModel.toggleTaskCheckbox(at: $0) },
                 onListContinuation: { viewModel.handleListContinuation(at: $0, text: $1) }
             )
-            .id(viewModel.editorRevision)
         }
     }
 
@@ -165,12 +164,16 @@ struct MarkdownEditorView: View {
             columnWidth: prefs.columnWidth,
             syntaxColors: colors,
             syntaxHighlightMode: prefs.syntaxHighlightMode,
-            isDarkMode: resolvedColorScheme == .dark
+            isDarkMode: resolvedColorScheme == .dark,
+            colorTheme: prefs.colorTheme
         )
     }
 
     private var resolvedColorScheme: ColorScheme {
-        preferencesStore.preferences.appearanceMode.colorScheme ?? colorScheme
+        EditorAppearance.resolvedColorScheme(
+            appearanceMode: preferencesStore.preferences.appearanceMode,
+            environment: colorScheme
+        )
     }
 
     private var errorBinding: Binding<Bool> {
@@ -197,7 +200,10 @@ struct DocumentWindowView: View {
     }
 
     private var resolvedColorScheme: ColorScheme {
-        preferencesStore.preferences.appearanceMode.colorScheme ?? colorScheme
+        EditorAppearance.resolvedColorScheme(
+            appearanceMode: preferencesStore.preferences.appearanceMode,
+            environment: colorScheme
+        )
     }
 
     private var editorBackground: Color {

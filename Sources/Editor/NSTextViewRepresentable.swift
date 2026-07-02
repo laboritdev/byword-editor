@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import SwiftUI
 
 @MainActor
 protocol EditorTextViewDelegate: AnyObject {
@@ -18,6 +19,7 @@ struct EditorConfiguration: Equatable {
     var syntaxColors: EditorColorsNS
     var syntaxHighlightMode: SyntaxHighlightMode
     var isDarkMode: Bool
+    var colorTheme: ColorTheme
 
     static func == (lhs: EditorConfiguration, rhs: EditorConfiguration) -> Bool {
         lhs.font.fontName == rhs.font.fontName
@@ -30,6 +32,7 @@ struct EditorConfiguration: Equatable {
             && lhs.syntaxColors == rhs.syntaxColors
             && lhs.syntaxHighlightMode == rhs.syntaxHighlightMode
             && lhs.isDarkMode == rhs.isDarkMode
+            && lhs.colorTheme == rhs.colorTheme
     }
 }
 
@@ -84,6 +87,9 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         textView.onListContinuation = { [weak coordinator = context.coordinator] location in
             coordinator?.handleListContinuation(at: location) ?? false
         }
+        textView.onWindowAttached = { [weak coordinator = context.coordinator] in
+            coordinator?.syncWhenWindowAttached()
+        }
 
         scrollView.documentView = textView
         scrollView.hasHorizontalScroller = false
@@ -114,6 +120,13 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             object: scrollView.contentView
         )
 
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.effectiveAppearanceDidChange(_:)),
+            name: .editorEffectiveAppearanceDidChange,
+            object: nil
+        )
+
         return scrollView
     }
 
@@ -129,15 +142,21 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         textView.onListContinuation = { [weak coordinator = context.coordinator] location in
             coordinator?.handleListContinuation(at: location) ?? false
         }
+        textView.onWindowAttached = { [weak coordinator = context.coordinator] in
+            coordinator?.syncWhenWindowAttached()
+        }
 
-        if context.coordinator.lastConfiguration != configuration {
-            context.coordinator.lastConfiguration = configuration
+        if context.coordinator.lastAppliedConfiguration != configuration {
+            context.coordinator.lastAppliedConfiguration = configuration
             context.coordinator.applyConfiguration(configuration)
         }
 
-        if textView.string != text
-            || context.coordinator.lastKnownCursor != cursorLocation
-            || context.coordinator.lastKnownSelectionLength != selectionLength {
+        if context.coordinator.needsTextSync(
+            textView: textView,
+            text: text,
+            cursorLocation: cursorLocation,
+            selectionLength: selectionLength
+        ) {
             context.coordinator.setText(text, cursorLocation: cursorLocation, selectionLength: selectionLength)
         }
 
@@ -162,7 +181,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         var lastKnownCursor: Int = 0
         var lastKnownSelectionLength: Int = 0
         var lastScrollOffset: Double = 0
-        var lastConfiguration: EditorConfiguration?
+        var lastAppliedConfiguration: EditorConfiguration?
         private let highlighter = MarkdownSyntaxHighlighter()
         private var isUpdating = false
 
@@ -182,6 +201,34 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             guard let result = onListContinuation?(location, textView.string) else { return false }
             applyStructuralEdit(text: result.text, cursorLocation: result.cursorLocation)
             return true
+        }
+
+        func syncWhenWindowAttached() {
+            applyConfiguration(parent.configuration)
+            setText(
+                parent.text,
+                cursorLocation: parent.cursorLocation,
+                selectionLength: parent.selectionLength
+            )
+        }
+
+        func needsTextSync(
+            textView: MarkdownTextView,
+            text: String,
+            cursorLocation: Int,
+            selectionLength: Int
+        ) -> Bool {
+            let storageLength = textView.textStorage?.length ?? 0
+            if !text.isEmpty && storageLength == 0 {
+                return true
+            }
+            if textView.string != text {
+                return true
+            }
+            if lastKnownCursor != cursorLocation || lastKnownSelectionLength != selectionLength {
+                return true
+            }
+            return false
         }
 
         private func applyStructuralEdit(text: String, cursorLocation: Int) {
@@ -209,11 +256,14 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         func applyConfiguration(_ configuration: EditorConfiguration) {
             guard let textView else { return }
 
-            let textColor = configuration.textColor.editorFixed
-            let backgroundColor = configuration.backgroundColor.editorFixed
-            let font = configuration.font
+            let resolvedConfiguration = configuration.resolved(for: textView.effectiveAppearance)
+            let textColor = resolvedConfiguration.textColor.editorFixed
+            let backgroundColor = resolvedConfiguration.backgroundColor.editorFixed
+            let font = resolvedConfiguration.font
 
-            let appearance = NSAppearance(named: configuration.isDarkMode ? .darkAqua : .aqua)
+            let appearance = NSAppearance(
+                named: resolvedConfiguration.isDarkMode ? .darkAqua : .aqua
+            )
             textView.appearance = appearance
             scrollView?.appearance = appearance
             scrollView?.backgroundColor = backgroundColor
@@ -225,20 +275,24 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             textView.font = font
             textView.insertionPointColor = textColor
             textView.selectedTextAttributes = [
-                .backgroundColor: configuration.syntaxColors.selection.editorFixed,
+                .backgroundColor: resolvedConfiguration.syntaxColors.selection.editorFixed,
                 .foregroundColor: textColor,
             ]
-            textView.typingAttributes = baseAttributes(for: configuration)
+            textView.typingAttributes = baseAttributes(for: resolvedConfiguration)
             textView.textContainer?.containerSize = NSSize(
-                width: configuration.columnWidth,
+                width: resolvedConfiguration.columnWidth,
                 height: CGFloat.greatestFiniteMagnitude
             )
             textView.textContainerInset = NSSize(
-                width: configuration.horizontalMargin,
+                width: resolvedConfiguration.horizontalMargin,
                 height: EditorTypography.verticalTextInset
             )
-            refreshHighlighting(configuration: configuration)
+            refreshHighlighting(configuration: resolvedConfiguration)
             textView.needsDisplay = true
+        }
+
+        private func resolvedConfiguration(for textView: MarkdownTextView) -> EditorConfiguration {
+            parent.configuration.resolved(for: textView.effectiveAppearance)
         }
 
         private func baseAttributes(for configuration: EditorConfiguration) -> [NSAttributedString.Key: Any] {
@@ -254,7 +308,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             isUpdating = true
             defer { isUpdating = false }
 
-            let configuration = parent.configuration
+            let configuration = parent.configuration.resolved(for: textView.effectiveAppearance)
             let textColor = configuration.textColor.editorFixed
 
             if storage.string != text {
@@ -279,6 +333,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             lastKnownText = text
             lastKnownCursor = safeLocation
             lastKnownSelectionLength = safeLength
+            textView.layoutManager?.ensureLayout(for: textView.textContainer!)
             textView.needsDisplay = true
         }
 
@@ -286,6 +341,17 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             guard let scrollView else { return }
             scrollView.contentView.scroll(to: NSPoint(x: 0, y: offset))
             lastScrollOffset = offset
+        }
+
+        @objc func effectiveAppearanceDidChange(_ notification: Notification) {
+            guard let textView else { return }
+            applyConfiguration(parent.configuration)
+            setText(
+                parent.text,
+                cursorLocation: parent.cursorLocation,
+                selectionLength: parent.selectionLength
+            )
+            textView.needsDisplay = true
         }
 
         @objc func scrollViewDidScroll(_ notification: Notification) {
@@ -300,7 +366,8 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             shouldChangeTextIn affectedCharRange: NSRange,
             replacementString: String?
         ) -> Bool {
-            textView.typingAttributes = baseAttributes(for: parent.configuration)
+            guard let markdownTextView = textView as? MarkdownTextView else { return true }
+            textView.typingAttributes = baseAttributes(for: resolvedConfiguration(for: markdownTextView))
             return true
         }
 
@@ -311,8 +378,9 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             lastKnownText = newText
             parent.text = newText
             delegate?.editorTextDidChange(newText)
-            textView.typingAttributes = baseAttributes(for: parent.configuration)
-            refreshHighlighting(configuration: parent.configuration)
+            let configuration = resolvedConfiguration(for: textView)
+            textView.typingAttributes = baseAttributes(for: configuration)
+            refreshHighlighting(configuration: configuration)
             textView.needsDisplay = true
         }
 
@@ -325,10 +393,12 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         private func refreshHighlighting(configuration: EditorConfiguration) {
             guard let textView, let storage = textView.textStorage else { return }
             let range = NSRange(location: 0, length: storage.length)
+            let textColor = configuration.textColor.editorFixed
+            let backgroundColor = configuration.backgroundColor.editorFixed
             let baseStyle = SyntaxStyle(
                 font: configuration.font,
-                foregroundColor: configuration.textColor.editorFixed,
-                backgroundColor: configuration.backgroundColor.editorFixed,
+                foregroundColor: textColor,
+                backgroundColor: nil,
                 lineHeight: configuration.lineHeight,
                 isDarkMode: configuration.isDarkMode
             )
@@ -339,15 +409,93 @@ struct NSTextViewRepresentable: NSViewRepresentable {
                 colors: configuration.syntaxColors,
                 mode: configuration.syntaxHighlightMode
             )
+            ensureLegibleForeground(
+                in: storage,
+                textColor: textColor,
+                backgroundColor: backgroundColor
+            )
         }
+
+        private func ensureLegibleForeground(
+            in storage: NSMutableAttributedString,
+            textColor: NSColor,
+            backgroundColor: NSColor
+        ) {
+            guard storage.length > 0 else { return }
+
+            let fallback = textColor.editorFixed
+            let background = backgroundColor.editorFixed
+            let fullRange = NSRange(location: 0, length: storage.length)
+
+            storage.enumerateAttributes(in: fullRange) { attributes, range, _ in
+                let foreground = (attributes[.foregroundColor] as? NSColor)?.editorFixed
+                if foreground == nil
+                    || foreground!.alphaComponent < 0.05
+                    || !Self.hasVisibleContrast(foreground!, against: background) {
+                    storage.addAttribute(.foregroundColor, value: fallback, range: range)
+                }
+            }
+        }
+
+        private static func hasVisibleContrast(_ foreground: NSColor, against background: NSColor) -> Bool {
+            let delta = abs(foreground.luminance - background.luminance)
+            return delta >= 0.08 || foreground.alphaComponent >= 0.5
+        }
+    }
+}
+
+private extension NSColor {
+    var luminance: CGFloat {
+        let color = editorFixed
+        return 0.2126 * color.redComponent
+            + 0.7152 * color.greenComponent
+            + 0.0722 * color.blueComponent
+    }
+}
+
+private extension EditorConfiguration {
+    func resolved(for appearance: NSAppearance) -> EditorConfiguration {
+        guard EditorAppearance.isDark(appearance) != isDarkMode else { return self }
+
+        let scheme: ColorScheme = EditorAppearance.isDark(appearance) ? .dark : .light
+        let colors = EditorColorsNS.colors(
+            for: scheme,
+            theme: colorTheme,
+            syntaxMode: syntaxHighlightMode
+        )
+        return EditorConfiguration(
+            font: font,
+            textColor: colors.text,
+            backgroundColor: colors.background,
+            lineHeight: lineHeight,
+            horizontalMargin: horizontalMargin,
+            columnWidth: columnWidth,
+            syntaxColors: colors,
+            syntaxHighlightMode: syntaxHighlightMode,
+            isDarkMode: scheme == .dark,
+            colorTheme: colorTheme
+        )
     }
 }
 
 final class MarkdownScrollView: NSScrollView {}
 
+private extension Notification.Name {
+    static let editorEffectiveAppearanceDidChange = Notification.Name(
+        "NSApplicationDidChangeEffectiveAppearanceNotification"
+    )
+}
+
 final class MarkdownTextView: NSTextView {
     var onToggleCheckbox: ((Int) -> Bool)?
     var onListContinuation: ((Int) -> Bool)?
+    var onWindowAttached: (() -> Void)?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil else { return }
+        onWindowAttached?()
+    }
 
     override func insertNewline(_ sender: Any?) {
         if onListContinuation?(selectedRange().location) == true {
