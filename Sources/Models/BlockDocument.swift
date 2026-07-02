@@ -336,11 +336,14 @@ struct BlockDocument: Equatable {
             case .list(var group):
                 for itemIndex in group.items.indices {
                     guard lineIndex < lines.count else { return }
-                    if let parsed = parseListLine(lines[lineIndex], kind: group.kind) {
+                    let line = lines[lineIndex]
+                    if let parsed = parseListLine(line, kind: group.kind) {
                         group.items[itemIndex].body = parsed.body
                         if case .task = group.kind {
                             group.items[itemIndex].checked = parsed.checked
                         }
+                    } else if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                        group.items[itemIndex].body = ""
                     }
                     lineIndex += 1
                 }
@@ -350,6 +353,10 @@ struct BlockDocument: Equatable {
     }
 
     private func parseLine(_ line: String, fallback: DocumentLineComponent) -> DocumentLineComponent {
+        if line.isEmpty {
+            return .plain("")
+        }
+
         let parsed = DocumentComponentParser.parse(line)
         guard let first = parsed.first, case .line(let component) = first, parsed.count == 1 else {
             return fallback

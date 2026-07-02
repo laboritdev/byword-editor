@@ -1,10 +1,9 @@
 import AppKit
 import SwiftUI
-import SwiftUI
 
 @MainActor
 protocol EditorTextViewDelegate: AnyObject {
-    func editorTextDidChange(_ text: String)
+    func editorTextDidChange(_ text: String, location: Int, selectionLength: Int)
     func editorSelectionDidChange(location: Int, length: Int)
     func editorScrollDidChange(offset: Double)
 }
@@ -321,8 +320,6 @@ struct NSTextViewRepresentable: NSViewRepresentable {
 
             refreshHighlighting(configuration: configuration)
 
-            textView.textColor = textColor
-            textView.font = configuration.font
             textView.insertionPointColor = textColor
             textView.typingAttributes = baseAttributes(for: configuration)
 
@@ -376,8 +373,14 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             let newText = textView.string
             guard newText != lastKnownText else { return }
             lastKnownText = newText
-            parent.text = newText
-            delegate?.editorTextDidChange(newText)
+            let range = textView.selectedRange()
+            lastKnownCursor = range.location
+            lastKnownSelectionLength = range.length
+            delegate?.editorTextDidChange(
+                newText,
+                location: range.location,
+                selectionLength: range.length
+            )
             let configuration = resolvedConfiguration(for: textView)
             textView.typingAttributes = baseAttributes(for: configuration)
             refreshHighlighting(configuration: configuration)
@@ -394,7 +397,6 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             guard let textView, let storage = textView.textStorage else { return }
             let range = NSRange(location: 0, length: storage.length)
             let textColor = configuration.textColor.editorFixed
-            let backgroundColor = configuration.backgroundColor.editorFixed
             let baseStyle = SyntaxStyle(
                 font: configuration.font,
                 foregroundColor: textColor,
@@ -409,47 +411,30 @@ struct NSTextViewRepresentable: NSViewRepresentable {
                 colors: configuration.syntaxColors,
                 mode: configuration.syntaxHighlightMode
             )
-            ensureLegibleForeground(
-                in: storage,
-                textColor: textColor,
-                backgroundColor: backgroundColor
-            )
+            ensureLegibleForeground(in: storage, textColor: textColor)
         }
 
         private func ensureLegibleForeground(
             in storage: NSMutableAttributedString,
-            textColor: NSColor,
-            backgroundColor: NSColor
+            textColor: NSColor
         ) {
             guard storage.length > 0 else { return }
 
             let fallback = textColor.editorFixed
-            let background = backgroundColor.editorFixed
             let fullRange = NSRange(location: 0, length: storage.length)
+            var repairs: [NSRange] = []
 
             storage.enumerateAttributes(in: fullRange) { attributes, range, _ in
                 let foreground = (attributes[.foregroundColor] as? NSColor)?.editorFixed
-                if foreground == nil
-                    || foreground!.alphaComponent < 0.05
-                    || !Self.hasVisibleContrast(foreground!, against: background) {
-                    storage.addAttribute(.foregroundColor, value: fallback, range: range)
+                if foreground == nil || foreground!.alphaComponent < 0.05 {
+                    repairs.append(range)
                 }
             }
-        }
 
-        private static func hasVisibleContrast(_ foreground: NSColor, against background: NSColor) -> Bool {
-            let delta = abs(foreground.luminance - background.luminance)
-            return delta >= 0.08 || foreground.alphaComponent >= 0.5
+            for range in repairs {
+                storage.addAttribute(.foregroundColor, value: fallback, range: range)
+            }
         }
-    }
-}
-
-private extension NSColor {
-    var luminance: CGFloat {
-        let color = editorFixed
-        return 0.2126 * color.redComponent
-            + 0.7152 * color.greenComponent
-            + 0.0722 * color.blueComponent
     }
 }
 

@@ -335,20 +335,26 @@ final class MarkdownSyntaxHighlighter {
         default: 0
         }
         let targetSize = font.pointSize + (mode == .subtle ? sizeBoost : sizeBoost + 1)
-        return NSFontManager.shared.convert(bold, toSize: targetSize)
+        return EditorFont.withCascade(NSFontManager.shared.convert(bold, toSize: targetSize))
     }
 
     private func monospacedFont(from font: NSFont, mode: SyntaxHighlightMode) -> NSFont {
         let size = mode == .subtle ? font.pointSize - 0.5 : font.pointSize
-        return NSFont.monospacedSystemFont(ofSize: max(11, size), weight: .regular)
+        let targetSize = max(11, size)
+        if let menlo = NSFont(name: "Menlo", size: targetSize) {
+            return EditorFont.withCascade(menlo)
+        }
+        return EditorFont.withCascade(
+            NSFont.monospacedSystemFont(ofSize: targetSize, weight: .regular)
+        )
     }
 
     private func boldFont(from font: NSFont) -> NSFont {
-        NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask)
+        EditorFont.withCascade(NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask))
     }
 
     private func italicFont(from font: NSFont) -> NSFont {
-        NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
+        EditorFont.withCascade(NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask))
     }
 
     private func blend(_ base: NSColor, toward other: NSColor, amount: CGFloat) -> NSColor {

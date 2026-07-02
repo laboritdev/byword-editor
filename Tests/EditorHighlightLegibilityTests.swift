@@ -25,6 +25,38 @@ struct EditorHighlightLegibilityTests {
         )
     }
 
+    @Test("subtle mode enlarges heading font")
+    func headingFontSize() {
+        let text = "# NOW\n## working\nBody"
+        let colors = EditorColorsNS.colors(for: .dark, theme: .classic, syntaxMode: .subtle)
+        let font = NSFont(name: "Menlo", size: 18) ?? NSFont.monospacedSystemFont(ofSize: 18, weight: .regular)
+        let storage = NSMutableAttributedString(
+            string: text,
+            attributes: EditorTypography.baseAttributes(font: font, textColor: colors.text, lineHeight: 1.7)
+        )
+        let highlighter = MarkdownSyntaxHighlighter()
+        let baseStyle = SyntaxStyle(
+            font: font,
+            foregroundColor: colors.text.editorFixed,
+            backgroundColor: nil,
+            lineHeight: 1.7,
+            isDarkMode: true
+        )
+        highlighter.applyHighlighting(
+            to: storage,
+            in: NSRange(location: 0, length: storage.length),
+            baseStyle: baseStyle,
+            colors: colors,
+            mode: .subtle
+        )
+
+        let headingFont = storage.attribute(.font, at: 2, effectiveRange: nil) as? NSFont
+        let bodyFont = storage.attribute(.font, at: text.utf16.count - 1, effectiveRange: nil) as? NSFont
+        #expect(headingFont != nil)
+        #expect(bodyFont != nil)
+        #expect(headingFont!.pointSize > bodyFont!.pointSize)
+    }
+
     private func assertLegibleHighlighting(
         text: String,
         scheme: ColorScheme,

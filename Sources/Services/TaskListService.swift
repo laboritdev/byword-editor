@@ -50,23 +50,27 @@ enum TaskListService {
     }
 
     static func toggleCheckbox(in text: String, at location: Int) -> TaskListEditResult? {
-        guard checkboxCharacterRange(in: text, at: location) != nil else { return nil }
         guard let lineRange = lineRange(in: text, at: location) else { return nil }
 
         let nsText = text as NSString
         let line = nsText.substring(with: lineRange)
+        let lineLength = (line as NSString).length
         guard let match = taskLinePattern.firstMatch(
             in: line,
             options: [],
-            range: NSRange(location: 0, length: (line as NSString).length)
+            range: NSRange(location: 0, length: lineLength)
         ) else { return nil }
+
+        let prefixEnd = match.range(at: 3).location + match.range(at: 3).length
+        let clickOffset = location - lineRange.location
+        guard clickOffset >= 0, clickOffset <= prefixEnd else { return nil }
 
         let stateRange = match.range(at: 2)
         let currentState = (line as NSString).substring(with: stateRange)
         let nextState = currentState == " " ? "x" : " "
         let updatedLine = (line as NSString).replacingCharacters(in: stateRange, with: nextState)
         let updatedText = nsText.replacingCharacters(in: lineRange, with: updatedLine)
-        let cursor = lineRange.location + min(location - lineRange.location, updatedLine.count)
+        let cursor = lineRange.location + min(clickOffset, updatedLine.count)
         return TaskListEditResult(text: updatedText, cursorLocation: cursor)
     }
 

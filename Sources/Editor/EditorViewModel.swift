@@ -47,7 +47,13 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
 
     var content: String {
         get { editorText }
-        set { updateContent(newValue) }
+        set {
+            updateContent(
+                newValue,
+                cursorLocation: snapshot.cursorLocation,
+                selectionLength: snapshot.selectionLength
+            )
+        }
     }
 
     func ensureIntroDemoIfNeeded() {
@@ -195,11 +201,22 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     }
 
     func toggleTaskCheckbox(at location: Int) -> TaskListEditResult? {
-        guard let cursor = blockDocument.toggleTaskCheckbox(at: location) else {
+        guard let result = TaskListService.toggleCheckbox(in: editorText, at: location) else {
             return nil
         }
-        commitBlockDocument(cursor: cursor)
-        return TaskListEditResult(text: blockDocument.markdown, cursorLocation: cursor)
+
+        blockDocument.applyEditedMarkdown(result.text)
+        let markdown = blockDocument.markdown
+        editorText = markdown
+        mutateSnapshot {
+            $0.content = markdown
+            $0.cursorLocation = result.cursorLocation
+            $0.selectionLength = 0
+            $0.isDirty = true
+        }
+        statistics = DocumentStatistics.compute(from: markdown)
+        scheduleAutoSave()
+        return TaskListEditResult(text: markdown, cursorLocation: result.cursorLocation)
     }
 
     func handleListContinuation(at location: Int, text: String) -> TaskListEditResult? {
@@ -272,10 +289,7 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
                 match: match,
                 replacement: findOptions.replacementText
             )
-            updateContent(updated)
-            mutateSnapshot {
-                $0.cursorLocation = match.range.location + (findOptions.replacementText as NSString).length
-            }
+            updateContent(updated, cursorLocation: match.range.location + (findOptions.replacementText as NSString).length)
             findStatusMessage = nil
         } catch {
             findStatusMessage = error.localizedDescription
@@ -285,7 +299,7 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     func replaceAllMatches() {
         do {
             let updated = try findReplaceService.replaceAll(in: snapshot.content, options: findOptions)
-            updateContent(updated)
+            updateContent(updated, cursorLocation: snapshot.cursorLocation)
             findStatusMessage = "All matches replaced."
         } catch {
             findStatusMessage = error.localizedDescription
@@ -294,8 +308,8 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
 
     // MARK: - EditorTextViewDelegate
 
-    func editorTextDidChange(_ text: String) {
-        updateContent(text)
+    func editorTextDidChange(_ text: String, location: Int, selectionLength: Int) {
+        updateContent(text, cursorLocation: location, selectionLength: selectionLength)
     }
 
     func editorSelectionDidChange(location: Int, length: Int) {
@@ -319,18 +333,22 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
         snapshot = updated
     }
 
-    private func updateContent(_ text: String) {
-        let previousCursor = snapshot.cursorLocation
+    private func updateContent(
+        _ text: String,
+        cursorLocation: Int,
+        selectionLength: Int = 0
+    ) {
         blockDocument.applyEditedMarkdown(text)
         let markdown = blockDocument.markdown
         let cursor = markdown == text
-            ? previousCursor
-            : DocumentStructureService.mapCursor(from: text, to: markdown, cursor: previousCursor)
+            ? cursorLocation
+            : DocumentStructureService.mapCursor(from: text, to: markdown, cursor: cursorLocation)
 
         editorText = markdown
         mutateSnapshot {
             $0.content = markdown
             $0.cursorLocation = cursor
+            $0.selectionLength = selectionLength
             $0.isDirty = true
         }
         statistics = DocumentStatistics.compute(from: markdown)
