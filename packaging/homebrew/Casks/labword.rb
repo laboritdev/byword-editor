@@ -1,8 +1,8 @@
 cask "labword" do
-  version "1.0.3"
-  sha256 "d89a22424d89feb733af21fab0fd5b5b2138e26b6ea8c2ac04e5512eb03a05a9"
+  version "1.0.4"
+  sha256 "184db633b604ca5c89b041d95e76ae3ef016b38cd3c533815571261072d136de"
 
-  url "https://github.com/laboritdev/labword/releases/download/v1.0.3/LabWord-1.0.3-macos-arm64.zip"
+  url "https://github.com/laboritdev/labword/releases/download/v1.0.4/LabWord-1.0.4-macos-arm64.zip"
   name "LabWord"
   desc "Minimalist Markdown editor for macOS by Laborit"
   homepage "https://github.com/laboritdev/labword"
