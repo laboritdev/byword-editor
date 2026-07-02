@@ -54,7 +54,7 @@ private struct DocumentSceneView: View {
             bootstrapDocumentIfNeeded()
         }
         .onOpenURL { url in
-            if let document = appState.openDocument(at: url) {
+            if let document = appState.openDocument(at: url, forceReload: true) {
                 openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
             }
         }
@@ -93,7 +93,7 @@ private struct DocumentSceneView: View {
                   let url = URL(dataRepresentation: data, relativeTo: nil),
                   url.isSupportedTextFile else { return }
             Task { @MainActor in
-                if let document = appState.openDocument(at: url) {
+                if let document = appState.openDocument(at: url, forceReload: true) {
                     openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
                 }
             }

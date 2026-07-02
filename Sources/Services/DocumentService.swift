@@ -33,7 +33,16 @@ public final class DocumentService {
             throw DocumentError.fileNotFound(url)
         }
         do {
-            return try String(contentsOf: url, encoding: .utf8)
+            let data = try Data(contentsOf: url)
+            if let utf8 = String(data: data, encoding: .utf8) {
+                return utf8
+            }
+            if let latin1 = String(data: data, encoding: .isoLatin1) {
+                return latin1
+            }
+            throw DocumentError.readFailed(url)
+        } catch let error as DocumentError {
+            throw error
         } catch {
             logger.error("Failed to read \(url.path, privacy: .public): \(error.localizedDescription)")
             throw DocumentError.readFailed(url)

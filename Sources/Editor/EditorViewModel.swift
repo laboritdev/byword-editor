@@ -4,6 +4,8 @@ import SwiftUI
 @MainActor
 final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     @Published private(set) var snapshot: DocumentSnapshot
+    @Published private(set) var editorText: String
+    @Published private(set) var editorRevision: Int = 0
     @Published var statistics: DocumentStatistics
     @Published var viewMode: ViewMode
     @Published var findOptions = FindOptions()
@@ -38,13 +40,21 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
         self.findReplaceService = findReplaceService
         self.recentFilesService = recentFilesService
         blockDocument = BlockDocument(markdown: snapshot.content)
+        editorText = snapshot.content
         statistics = DocumentStatistics.compute(from: snapshot.content)
         viewMode = snapshot.viewMode
     }
 
     var content: String {
-        get { blockDocument.markdown }
+        get { editorText }
         set { updateContent(newValue) }
+    }
+
+    func ensureIntroDemoIfNeeded() {
+        guard snapshot.fileURL == nil else { return }
+        guard editorText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard PreferencesStore.shared.preferences.showIntroDemo else { return }
+        applyLoadedContent(IntroDemoContent.content, fileURL: nil, isDirty: false)
     }
 
     var displayTitle: String {
@@ -70,15 +80,17 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
 
     private func applyLoadedContent(_ loaded: String, fileURL: URL?, isDirty: Bool) {
         blockDocument = BlockDocument(markdown: loaded)
+        editorText = blockDocument.markdown
+        editorRevision += 1
         mutateSnapshot {
             $0.fileURL = fileURL
-            $0.content = blockDocument.markdown
+            $0.content = editorText
             $0.isDirty = isDirty
             $0.cursorLocation = 0
             $0.selectionLength = 0
             $0.scrollOffset = 0
         }
-        statistics = DocumentStatistics.compute(from: blockDocument.markdown)
+        statistics = DocumentStatistics.compute(from: editorText)
     }
 
     func saveAs(to url: URL) {
@@ -199,13 +211,15 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     }
 
     private func commitBlockDocument(cursor: Int) {
+        editorText = blockDocument.markdown
+        editorRevision += 1
         mutateSnapshot {
-            $0.content = blockDocument.markdown
+            $0.content = editorText
             $0.cursorLocation = cursor
             $0.selectionLength = 0
             $0.isDirty = true
         }
-        statistics = DocumentStatistics.compute(from: blockDocument.markdown)
+        statistics = DocumentStatistics.compute(from: editorText)
         scheduleAutoSave()
     }
 
@@ -300,8 +314,9 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     }
 
     private func mutateSnapshot(_ mutation: (inout DocumentSnapshot) -> Void) {
-        mutation(&snapshot)
-        objectWillChange.send()
+        var updated = snapshot
+        mutation(&updated)
+        snapshot = updated
     }
 
     private func updateContent(_ text: String) {
@@ -312,6 +327,8 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
             ? previousCursor
             : DocumentStructureService.mapCursor(from: text, to: markdown, cursor: previousCursor)
 
+        editorText = markdown
+        editorRevision += 1
         mutateSnapshot {
             $0.content = markdown
             $0.cursorLocation = cursor

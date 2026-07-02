@@ -95,6 +95,14 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         context.coordinator.applyConfiguration(configuration)
         context.coordinator.setText(text, cursorLocation: cursorLocation, selectionLength: selectionLength)
 
+        let coordinator = context.coordinator
+        let initialText = text
+        let initialCursor = cursorLocation
+        let initialSelection = selectionLength
+        DispatchQueue.main.async {
+            coordinator.setText(initialText, cursorLocation: initialCursor, selectionLength: initialSelection)
+        }
+
         DispatchQueue.main.async {
             textView.window?.makeFirstResponder(textView)
         }
@@ -246,14 +254,23 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             isUpdating = true
             defer { isUpdating = false }
 
+            let configuration = parent.configuration
+            let textColor = configuration.textColor.editorFixed
+
             if storage.string != text {
                 let attributed = NSAttributedString(
                     string: text,
-                    attributes: baseAttributes(for: parent.configuration)
+                    attributes: baseAttributes(for: configuration)
                 )
                 storage.setAttributedString(attributed)
-                refreshHighlighting(configuration: parent.configuration)
             }
+
+            refreshHighlighting(configuration: configuration)
+
+            textView.textColor = textColor
+            textView.font = configuration.font
+            textView.insertionPointColor = textColor
+            textView.typingAttributes = baseAttributes(for: configuration)
 
             let nsString = textView.string as NSString
             let safeLocation = min(max(0, cursorLocation), nsString.length)
@@ -262,6 +279,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             lastKnownText = text
             lastKnownCursor = safeLocation
             lastKnownSelectionLength = safeLength
+            textView.needsDisplay = true
         }
 
         func setScrollOffset(_ offset: Double) {

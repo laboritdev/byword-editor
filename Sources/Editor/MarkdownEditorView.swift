@@ -74,7 +74,7 @@ struct MarkdownEditorView: View {
         GeometryReader { geometry in
             NSTextViewRepresentable(
                 text: Binding(
-                    get: { viewModel.snapshot.content },
+                    get: { viewModel.editorText },
                     set: { viewModel.content = $0 }
                 ),
                 configuration: editorConfiguration(containerWidth: geometry.size.width),
@@ -85,6 +85,7 @@ struct MarkdownEditorView: View {
                 onToggleCheckbox: { viewModel.toggleTaskCheckbox(at: $0) },
                 onListContinuation: { viewModel.handleListContinuation(at: $0, text: $1) }
             )
+            .id(viewModel.editorRevision)
         }
     }
 
@@ -120,7 +121,7 @@ struct MarkdownEditorView: View {
 
     private var cursorStatusLabel: String {
         EditorCursorPosition.from(
-            text: viewModel.content,
+            text: viewModel.editorText,
             location: viewModel.snapshot.cursorLocation,
             selectionLength: viewModel.snapshot.selectionLength
         ).statusLabel

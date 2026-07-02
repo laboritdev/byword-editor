@@ -28,6 +28,7 @@ public final class AppState: ObservableObject {
 
     func createUntitledDocument(id: UUID? = nil) -> EditorViewModel {
         if let id, let existing = document(with: id) {
+            existing.ensureIntroDemoIfNeeded()
             return existing
         }
         let content = IntroDemoContent.initialContent(
@@ -42,14 +43,21 @@ public final class AppState: ObservableObject {
 
     func resolveDocument(forWindow documentID: UUID) -> EditorViewModel {
         if let existing = document(with: documentID) {
+            existing.ensureIntroDemoIfNeeded()
             return existing
+        }
+        if documents.count == 1, let sole = documents.first {
+            sole.ensureIntroDemoIfNeeded()
+            return sole
         }
         return createUntitledDocument(id: documentID)
     }
 
-    func openDocument(at url: URL) -> EditorViewModel? {
+    func openDocument(at url: URL, forceReload: Bool = false) -> EditorViewModel? {
         if let existing = documents.first(where: { $0.snapshot.fileURL == url }) {
-            existing.reloadFromURLIfNeeded()
+            if forceReload || existing.editorText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                existing.loadFromURL(url)
+            }
             return existing
         }
         let snapshot = DocumentSnapshot(fileURL: url)
@@ -71,6 +79,7 @@ public final class AppState: ObservableObject {
             isDirty: recovery.fileURL == nil
         )
         let viewModel = makeViewModel(snapshot: snapshot)
+        viewModel.ensureIntroDemoIfNeeded()
         documents.append(viewModel)
         return viewModel
     }
@@ -100,13 +109,13 @@ public final class AppState: ObservableObject {
         }
 
         if let fileURL = first.fileURL {
-            _ = openDocument(at: fileURL)
+            _ = openDocument(at: fileURL, forceReload: true)
         }
     }
 
     private func restoreDocument(from recovery: RecoverySnapshot) {
         if let fileURL = recovery.fileURL {
-            _ = openDocument(at: fileURL)
+            _ = openDocument(at: fileURL, forceReload: true)
             return
         }
 
