@@ -12,7 +12,7 @@ final class HelpWindowController: NSWindowController, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "BywordEditor Help"
+        window.title = "\(Constants.appName) Help"
         window.isReleasedWhenClosed = false
         super.init(window: window)
         window.delegate = self

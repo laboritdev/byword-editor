@@ -57,8 +57,8 @@ jobs:
         id: artifact
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          ZIP="dist/BywordEditor-${VERSION}-macos-arm64.zip"
-          SHA256="$(cat "dist/BywordEditor-${VERSION}-macos-arm64.zip.sha256")"
+          ZIP="dist/LabWord-${VERSION}-macos-arm64.zip"
+          SHA256="$(cat "dist/LabWord-${VERSION}-macos-arm64.zip.sha256")"
           echo "zip=${ZIP}" >> "$GITHUB_OUTPUT"
           echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
 
@@ -79,12 +79,12 @@ jobs:
             ## Install
 
             ### Direct download
-            Download `BywordEditor-${{ steps.version.outputs.version }}-macos-arm64.zip`, unzip, and move `BywordEditor.app` to `/Applications`.
+            Download `LabWord-${{ steps.version.outputs.version }}-macos-arm64.zip`, unzip, and move `LabWord.app` to `/Applications`.
 
             ### Homebrew
             ```bash
             brew tap laboritdev/tap
-            brew install --cask byword-editor
+            brew install --cask labword
             ```
 
             **SHA256:** `${{ steps.artifact.outputs.sha256 }}`
@@ -96,7 +96,7 @@ jobs:
         run: |
           if [[ -z "${TAP_TOKEN}" ]]; then
             echo "HOMEBREW_TAP_TOKEN not configured; skipping tap publish."
-            echo "Update laboritdev/homebrew-tap manually with packaging/homebrew/Casks/byword-editor.rb"
+            echo "Update laboritdev/homebrew-tap manually with packaging/homebrew/Casks/labword.rb"
             exit 0
           fi
           VERSION="${{ steps.version.outputs.version }}"
@@ -105,11 +105,11 @@ jobs:
 
           git clone "https://x-access-token:${TAP_TOKEN}@github.com/laboritdev/homebrew-tap.git" /tmp/homebrew-tap
           mkdir -p /tmp/homebrew-tap/Casks
-          cp packaging/homebrew/Casks/byword-editor.rb /tmp/homebrew-tap/Casks/byword-editor.rb
+          cp packaging/homebrew/Casks/labword.rb /tmp/homebrew-tap/Casks/labword.rb
 
           cd /tmp/homebrew-tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Casks/byword-editor.rb
-          git diff --staged --quiet || git commit -m "chore(cask): bump byword-editor to ${VERSION}"
+          git add Casks/labword.rb
+          git diff --staged --quiet || git commit -m "chore(cask): bump labword to ${VERSION}"
           git push origin HEAD:master

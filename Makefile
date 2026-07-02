@@ -1,15 +1,15 @@
-# BywordEditor — developer shortcuts for Swift Package Manager on macOS
+# LabWord — developer shortcuts for Swift Package Manager on macOS
 
 SWIFT      := xcrun swift
 PACKAGE    := Package.swift
-EXECUTABLE := BywordEditor
+EXECUTABLE := LabWord
 
 .PHONY: help build test run clean xcode
 
 .DEFAULT_GOAL := help
 
 help: ## Show available targets
-	@echo "BywordEditor — available targets:"
+	@echo "LabWord — available targets:"
 	@echo ""
 	@grep -E '^[a-zA-Z0-9_-]+:.*##' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -21,7 +21,7 @@ build: ## Build the project (xcrun swift build)
 test: ## Run unit tests (xcrun swift test)
 	$(SWIFT) test
 
-run: build ## Build and run the BywordEditor executable
+run: build ## Build and run the LabWord executable
 	@bin_dir="$$($(SWIFT) build --show-bin-path)"; \
 	echo "Launching $$bin_dir/$(EXECUTABLE)…"; \
 	exec "$$bin_dir/$(EXECUTABLE)"

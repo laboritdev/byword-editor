@@ -15,7 +15,11 @@ struct PreferencesView: View {
 
                 HStack {
                     Text("Size")
-                    Slider(value: $store.preferences.fontSize, in: 12...28, step: 1)
+                    Slider(
+                        value: $store.preferences.fontSize,
+                        in: Constants.minimumFontSize...Constants.maximumFontSize,
+                        step: Constants.fontSizeStep
+                    )
                     Text("\(Int(store.preferences.fontSize)) pt")
                         .monospacedDigit()
                         .frame(width: 48, alignment: .trailing)
@@ -23,8 +27,8 @@ struct PreferencesView: View {
 
                 HStack {
                     Text("Line Height")
-                    Slider(value: $store.preferences.lineHeight, in: 1.2...2.4, step: 0.1)
-                    Text(String(format: "%.1f", store.preferences.lineHeight))
+                    Slider(value: $store.preferences.lineHeight, in: 1.2...2.4, step: 0.05)
+                    Text(String(format: "%.2f", store.preferences.lineHeight))
                         .monospacedDigit()
                         .frame(width: 48, alignment: .trailing)
                 }
@@ -36,11 +40,34 @@ struct PreferencesView: View {
                         .monospacedDigit()
                         .frame(width: 56, alignment: .trailing)
                 }
+
+                HStack {
+                    Text("Side Margin")
+                    Slider(value: $store.preferences.horizontalMargin, in: 24...160, step: 4)
+                    Text("\(Int(store.preferences.horizontalMargin)) px")
+                        .monospacedDigit()
+                        .frame(width: 56, alignment: .trailing)
+                }
+
+                Toggle("Center writing column", isOn: $store.preferences.centerColumn)
             }
 
             Section("Appearance") {
-                Picker("Theme", selection: $store.preferences.appearanceMode) {
+                Picker("Mode", selection: $store.preferences.appearanceMode) {
                     ForEach(AppearanceMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Picker("Color Theme", selection: $store.preferences.colorTheme) {
+                    ForEach(ColorTheme.allCases) { theme in
+                        Text(theme.displayName).tag(theme)
+                    }
+                }
+
+                Picker("Syntax Highlighting", selection: $store.preferences.syntaxHighlightMode) {
+                    ForEach(SyntaxHighlightMode.allCases) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
@@ -51,9 +78,13 @@ struct PreferencesView: View {
                 Toggle("Show word count", isOn: $store.preferences.showWordCount)
                 Toggle("Show status bar", isOn: $store.preferences.showStatusBar)
             }
+
+            Section("Documents") {
+                Toggle("Show intro demo on new documents", isOn: $store.preferences.showIntroDemo)
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 420, height: 360)
+        .frame(width: 440, height: 520)
         .padding()
     }
 }

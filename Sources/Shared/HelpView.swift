@@ -21,7 +21,7 @@ struct HelpView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("BywordEditor Help")
+            Text("\(Constants.appName) Help")
                 .font(.title2.weight(.semibold))
             Text("Keyboard shortcuts and developer commands.")
                 .font(.subheadline)

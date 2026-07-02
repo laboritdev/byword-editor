@@ -1,27 +1,21 @@
-# laboritdev/homebrew-tap
+# Homebrew tap
 
-Homebrew tap for Laborit macOS applications.
-
-## Usage
+Install LabWord from the Laborit tap:
 
 ```bash
 brew tap laboritdev/tap
-brew install --cask byword-editor
+brew trust laboritdev/tap
+brew install --cask labword
 ```
-
-## Available casks
 
 | Cask | Description |
 |------|-------------|
-| `byword-editor` | Minimalist Markdown editor for macOS |
+| `labword` | Minimalist Markdown editor for macOS by Laborit |
 
-## Updating casks
+Releases from [laboritdev/labword](https://github.com/laboritdev/labword) update `labword` automatically when `HOMEBREW_TAP_TOKEN` is configured in that repository.
 
-Releases from [laboritdev/byword-editor](https://github.com/laboritdev/byword-editor) update `byword-editor` automatically when `HOMEBREW_TAP_TOKEN` is configured in that repository.
-
-Manual update:
+Manual tap update:
 
 ```bash
-./Scripts/update-homebrew-cask.sh <version> <sha256> arm64
-cp packaging/homebrew/Casks/byword-editor.rb ../homebrew-tap/Casks/
+cp packaging/homebrew/Casks/labword.rb ../homebrew-tap/Casks/
 ```

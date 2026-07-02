@@ -7,15 +7,21 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     @Published var statistics: DocumentStatistics
     @Published var viewMode: ViewMode
     @Published var findOptions = FindOptions()
-    @Published var isFindPanelVisible = false
+    @Published var activePanel: EditorPanel?
     @Published var findStatusMessage: String?
     @Published var errorMessage: String?
+    @Published private(set) var saveFeedback: String?
+
+    var isFindPanelVisible: Bool {
+        activePanel == .find
+    }
 
     private let documentService: DocumentService
     private let autoSaveService: AutoSaveService
     private let recoveryService: RecoveryService
     private let findReplaceService: FindReplaceService
     private let recentFilesService: RecentFilesService
+    private var blockDocument: BlockDocument
 
     init(
         snapshot: DocumentSnapshot,
@@ -31,12 +37,13 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
         self.recoveryService = recoveryService
         self.findReplaceService = findReplaceService
         self.recentFilesService = recentFilesService
+        blockDocument = BlockDocument(markdown: snapshot.content)
         statistics = DocumentStatistics.compute(from: snapshot.content)
         viewMode = snapshot.viewMode
     }
 
     var content: String {
-        get { snapshot.content }
+        get { blockDocument.markdown }
         set { updateContent(newValue) }
     }
 
@@ -47,13 +54,16 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     func loadFromURL(_ url: URL) {
         do {
             let loaded = try documentService.load(from: url)
-            snapshot.fileURL = url
-            snapshot.content = loaded
-            snapshot.isDirty = false
-            snapshot.cursorLocation = 0
-            snapshot.selectionLength = 0
-            snapshot.scrollOffset = 0
-            statistics = DocumentStatistics.compute(from: loaded)
+            blockDocument = BlockDocument(markdown: loaded)
+            mutateSnapshot {
+                $0.fileURL = url
+                $0.content = blockDocument.markdown
+                $0.isDirty = false
+                $0.cursorLocation = 0
+                $0.selectionLength = 0
+                $0.scrollOffset = 0
+            }
+            statistics = DocumentStatistics.compute(from: blockDocument.markdown)
             recentFilesService.addRecentFile(url)
             recoveryService.saveRecoverySnapshot(from: snapshot)
         } catch {
@@ -64,10 +74,13 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     func saveAs(to url: URL) {
         do {
             try documentService.save(content: snapshot.content, to: url)
-            snapshot.fileURL = url
-            snapshot.isDirty = false
+            mutateSnapshot {
+                $0.fileURL = url
+                $0.isDirty = false
+            }
             recentFilesService.addRecentFile(url)
             recoveryService.removeRecoverySnapshot(for: snapshot.id)
+            showSaveFeedback("Saved to \(url.lastPathComponent)")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -77,9 +90,12 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
         guard let source = snapshot.fileURL else { return }
         do {
             try documentService.duplicate(source: source, destination: url)
-            snapshot.fileURL = url
-            snapshot.isDirty = false
+            mutateSnapshot {
+                $0.fileURL = url
+                $0.isDirty = false
+            }
             recentFilesService.addRecentFile(url)
+            showSaveFeedback("Saved to \(url.lastPathComponent)")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -89,9 +105,12 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
         guard let source = snapshot.fileURL else { return }
         do {
             try documentService.move(from: source, to: url)
-            snapshot.fileURL = url
-            snapshot.isDirty = false
+            mutateSnapshot {
+                $0.fileURL = url
+                $0.isDirty = false
+            }
             recentFilesService.addRecentFile(url)
+            showSaveFeedback("Renamed to \(url.lastPathComponent)")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -99,21 +118,25 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
 
     func toggleViewMode() {
         viewMode = viewMode == .editor ? .preview : .editor
-        snapshot.viewMode = viewMode
+        mutateSnapshot { $0.viewMode = viewMode }
         scheduleAutoSave()
     }
 
     func setViewMode(_ mode: ViewMode) {
         viewMode = mode
-        snapshot.viewMode = mode
+        mutateSnapshot { $0.viewMode = mode }
         scheduleAutoSave()
     }
 
     func saveImmediately() async {
+        guard snapshot.fileURL != nil else { return }
         await autoSaveService.saveImmediately(snapshot: snapshot)
-        if snapshot.fileURL != nil {
-            snapshot.isDirty = false
-        }
+        mutateSnapshot { $0.isDirty = false }
+        showSaveFeedback("Saved")
+    }
+
+    var needsSavePanel: Bool {
+        snapshot.fileURL == nil
     }
 
     func closeDocument() async {
@@ -124,12 +147,56 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
         }
     }
 
+    func showPanel(_ panel: EditorPanel) {
+        activePanel = panel
+    }
+
+    func dismissPanel() {
+        activePanel = nil
+    }
+
     func showFindPanel() {
-        isFindPanelVisible = true
+        showPanel(.find)
     }
 
     func hideFindPanel() {
-        isFindPanelVisible = false
+        if activePanel == .find {
+            dismissPanel()
+        }
+    }
+
+    func insertTaskListItem(checked: Bool = false) {
+        guard let cursor = blockDocument.insertTaskItem(at: snapshot.cursorLocation, checked: checked) else {
+            return
+        }
+        commitBlockDocument(cursor: cursor)
+    }
+
+    func toggleTaskCheckbox(at location: Int) -> TaskListEditResult? {
+        guard let cursor = blockDocument.toggleTaskCheckbox(at: location) else {
+            return nil
+        }
+        commitBlockDocument(cursor: cursor)
+        return TaskListEditResult(text: blockDocument.markdown, cursorLocation: cursor)
+    }
+
+    func handleListContinuation(at location: Int, text: String) -> TaskListEditResult? {
+        guard let cursor = blockDocument.handleEnter(at: location, in: text) else {
+            return nil
+        }
+        commitBlockDocument(cursor: cursor)
+        return TaskListEditResult(text: blockDocument.markdown, cursorLocation: cursor)
+    }
+
+    private func commitBlockDocument(cursor: Int) {
+        mutateSnapshot {
+            $0.content = blockDocument.markdown
+            $0.cursorLocation = cursor
+            $0.selectionLength = 0
+            $0.isDirty = true
+        }
+        statistics = DocumentStatistics.compute(from: blockDocument.markdown)
+        scheduleAutoSave()
     }
 
     func findNext() {
@@ -182,7 +249,9 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
                 replacement: findOptions.replacementText
             )
             updateContent(updated)
-            snapshot.cursorLocation = match.range.location + (findOptions.replacementText as NSString).length
+            mutateSnapshot {
+                $0.cursorLocation = match.range.location + (findOptions.replacementText as NSString).length
+            }
             findStatusMessage = nil
         } catch {
             findStatusMessage = error.localizedDescription
@@ -226,11 +295,19 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     }
 
     private func updateContent(_ text: String) {
+        let previousCursor = snapshot.cursorLocation
+        blockDocument.applyEditedMarkdown(text)
+        let markdown = blockDocument.markdown
+        let cursor = markdown == text
+            ? previousCursor
+            : DocumentStructureService.mapCursor(from: text, to: markdown, cursor: previousCursor)
+
         mutateSnapshot {
-            $0.content = text
+            $0.content = markdown
+            $0.cursorLocation = cursor
             $0.isDirty = true
         }
-        statistics = DocumentStatistics.compute(from: text)
+        statistics = DocumentStatistics.compute(from: markdown)
         scheduleAutoSave()
     }
 
@@ -242,6 +319,16 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
         mutateSnapshot {
             $0.cursorLocation = match.range.location
             $0.selectionLength = match.range.length
+        }
+    }
+
+    private func showSaveFeedback(_ message: String) {
+        saveFeedback = message
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.5))
+            if saveFeedback == message {
+                saveFeedback = nil
+            }
         }
     }
 }

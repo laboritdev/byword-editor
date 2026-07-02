@@ -12,7 +12,7 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Document") {
                 let document = appState.createUntitledDocument()
-                openWindow(value: document.snapshot.id)
+                openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
             }
             .keyboardShortcut("n")
 
@@ -25,7 +25,7 @@ struct AppCommands: Commands {
                 ForEach(RecentFilesService.shared.recentFiles, id: \.path) { url in
                     Button(url.lastPathComponent) {
                         if let document = appState.openDocument(at: url) {
-                            openWindow(value: document.snapshot.id)
+                            openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
                         }
                     }
                 }
@@ -34,7 +34,15 @@ struct AppCommands: Commands {
 
         CommandGroup(after: .saveItem) {
             Button("Save") {
-                Task { await activeEditor?.saveImmediately() }
+                guard let editor = activeEditor else { return }
+                if editor.needsSavePanel {
+                    saveAs()
+                } else {
+                    Task {
+                        await editor.saveImmediately()
+                        appState.saveSession()
+                    }
+                }
             }
             .keyboardShortcut("s")
 
@@ -42,6 +50,12 @@ struct AppCommands: Commands {
                 saveAs()
             }
             .keyboardShortcut("S", modifiers: [.command, .shift])
+
+            Button("Rename…") {
+                renameDocument()
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .disabled(activeEditor?.snapshot.fileURL == nil)
 
             Button("Duplicate…") {
                 duplicate()
@@ -80,6 +94,13 @@ struct AppCommands: Commands {
                 activeEditor?.findPrevious()
             }
             .keyboardShortcut("g", modifiers: [.command, .shift])
+
+            Divider()
+
+            Button("Insert Checklist Item") {
+                activeEditor?.insertTaskListItem()
+            }
+            .keyboardShortcut("l", modifiers: [.command, .shift])
         }
 
         CommandMenu("View") {
@@ -92,13 +113,36 @@ struct AppCommands: Commands {
                 FocusModeManager.shared.toggle()
             }
             .keyboardShortcut("f", modifiers: [.command, .control])
+
+            Divider()
+
+            Button("Preferences…") {
+                activeEditor?.showPanel(.preferences)
+            }
+            .keyboardShortcut(",")
+
+            Button("Formatting Hints…") {
+                activeEditor?.showPanel(.formattingHints)
+            }
+            .keyboardShortcut("/", modifiers: [.command, .shift])
+
+            Divider()
+
+            Button("Increase Font Size") {
+                PreferencesStore.shared.increaseFontSize()
+            }
+            .keyboardShortcut(">", modifiers: [.command, .shift])
+
+            Button("Decrease Font Size") {
+                PreferencesStore.shared.decreaseFontSize()
+            }
+            .keyboardShortcut("<", modifiers: [.command, .shift])
         }
 
         CommandGroup(replacing: .appSettings) {
-            Button("Preferences…") {
+            Button("Advanced Preferences…") {
                 openSettings()
             }
-            .keyboardShortcut(",")
         }
 
         CommandGroup(after: .printItem) {
@@ -110,7 +154,7 @@ struct AppCommands: Commands {
         }
 
         CommandGroup(replacing: .appVisibility) {
-            Button("Hide BywordEditor") {
+            Button("Hide \(Constants.appName)") {
                 NSApp.hide(nil)
             }
 
@@ -125,8 +169,8 @@ struct AppCommands: Commands {
         }
 
         CommandGroup(replacing: .help) {
-            Button("BywordEditor Help") {
-                HelpWindowController.shared.present()
+            Button("\(Constants.appName) Help") {
+                activeEditor?.showPanel(.help)
             }
             .keyboardShortcut("h")
         }
@@ -144,7 +188,7 @@ struct AppCommands: Commands {
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             if let document = appState.openDocument(at: url) {
-                openWindow(value: document.snapshot.id)
+                openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
             }
         }
     }
@@ -157,6 +201,7 @@ struct AppCommands: Commands {
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             editor.saveAs(to: url)
+            appState.saveSession()
         }
     }
 
@@ -169,6 +214,29 @@ struct AppCommands: Commands {
             guard response == .OK, let url = panel.url else { return }
             editor.duplicate(to: url)
         }
+    }
+
+    private func renameDocument() {
+        guard let editor = activeEditor, let source = editor.snapshot.fileURL else { return }
+        let alert = NSAlert()
+        alert.messageText = "Rename Document"
+        alert.informativeText = "Enter a new name for this file."
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+        input.stringValue = source.displayName
+        alert.accessoryView = input
+        alert.window.initialFirstResponder = input
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let newName = input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty else { return }
+
+        let destination = source.deletingLastPathComponent()
+            .appendingPathComponent(newName)
+            .appendingPathExtension(source.pathExtension.isEmpty ? "md" : source.pathExtension)
+        editor.rename(to: destination)
     }
 }
 

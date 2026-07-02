@@ -1,5 +1,5 @@
 import Testing
-@testable import BywordEditorCore
+@testable import LabWordCore
 
 @Suite("Application Shell")
 struct AppShellTests {

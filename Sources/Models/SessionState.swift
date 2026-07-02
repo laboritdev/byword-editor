@@ -34,11 +34,33 @@ public struct DocumentSnapshot: Codable, Equatable, Identifiable {
         if let fileURL {
             return fileURL.displayName
         }
+        if let heading = content.firstMarkdownHeading {
+            return heading
+        }
         return "Untitled"
     }
 
     var fileExtension: String {
         fileURL?.pathExtension.lowercased() ?? "md"
+    }
+
+    var saveStateLabel: String {
+        guard fileURL != nil else {
+            return isDirty ? "Unsaved" : "New document"
+        }
+        return isDirty ? "Edited" : "Saved"
+    }
+
+    var fileLocationLabel: String {
+        guard let fileURL else {
+            return "No file — ⌘S to save"
+        }
+        return fileURL.abbreviatedPath
+    }
+
+    var workspaceLabel: String? {
+        guard let fileURL else { return nil }
+        return fileURL.abbreviatedDirectory
     }
 }
 
