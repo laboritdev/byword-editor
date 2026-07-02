@@ -1,6 +1,6 @@
 cask "labword" do
   version "1.0.6"
-  sha256 "1a7d18b58db5324d88a6246beac0b67e107beb7add053f09fb3fd2289882e186"
+  sha256 "148b9311200505871d045d21214dd1eeeb2ddee1e4bf5b5cd1c3c62ef571c6ca"
 
   url "https://github.com/laboritdev/labword/releases/download/v1.0.6/LabWord-1.0.6-macos-arm64.zip"
   name "LabWord"
