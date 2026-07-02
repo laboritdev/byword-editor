@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-public struct BywordEditorScenes: Scene {
+public struct LabWordScenes: Scene {
     @ObservedObject private var appState: AppState
     private let appDelegate: AppDelegate
 
@@ -11,7 +11,7 @@ public struct BywordEditorScenes: Scene {
     }
 
     public var body: some Scene {
-        WindowGroup(for: UUID.self) { $documentID in
+        WindowGroup(id: Constants.documentWindowSceneID, for: UUID.self) { $documentID in
             DocumentSceneView(documentID: documentID, appState: appState, appDelegate: appDelegate)
         }
         .defaultSize(width: 900, height: 700)
@@ -31,6 +31,7 @@ private struct DocumentSceneView: View {
     @ObservedObject var appState: AppState
     let appDelegate: AppDelegate
     @Environment(\.openWindow) private var openWindow
+    @State private var fallbackDocumentID: UUID?
 
     var body: some View {
         Group {
@@ -43,28 +44,46 @@ private struct DocumentSceneView: View {
             } else {
                 ProgressView("Opening…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .onAppear {
-                        if appState.documents.isEmpty {
-                            _ = appState.createUntitledDocument()
-                        }
-                    }
             }
         }
         .onAppear {
             appDelegate.appState = appState
+            bootstrapDocumentIfNeeded()
+        }
+        .onChange(of: documentID) { _, _ in
+            bootstrapDocumentIfNeeded()
         }
         .onOpenURL { url in
             if let document = appState.openDocument(at: url) {
-                openWindow(value: document.snapshot.id)
+                openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
             }
         }
     }
 
     private var resolvedViewModel: EditorViewModel? {
-        if let documentID, let viewModel = appState.document(with: documentID) {
-            return viewModel
+        if let documentID {
+            return appState.resolveDocument(forWindow: documentID)
         }
-        return appState.documents.first
+        if let fallbackDocumentID {
+            return appState.resolveDocument(forWindow: fallbackDocumentID)
+        }
+        if appState.documents.count == 1 {
+            return appState.documents.first
+        }
+        return nil
+    }
+
+    private func bootstrapDocumentIfNeeded() {
+        if documentID != nil {
+            return
+        }
+        if appState.documents.count == 1 {
+            return
+        }
+        if fallbackDocumentID == nil {
+            let document = appState.createUntitledDocument()
+            fallbackDocumentID = document.snapshot.id
+        }
     }
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
@@ -75,7 +94,7 @@ private struct DocumentSceneView: View {
                   url.isSupportedTextFile else { return }
             Task { @MainActor in
                 if let document = appState.openDocument(at: url) {
-                    openWindow(value: document.snapshot.id)
+                    openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
                 }
             }
         }

@@ -15,6 +15,7 @@ enum HelpReference {
                 HelpShortcut(action: "Open…", shortcut: "⌘O"),
                 HelpShortcut(action: "Save", shortcut: "⌘S"),
                 HelpShortcut(action: "Save As…", shortcut: "⇧⌘S"),
+                HelpShortcut(action: "Rename…", shortcut: "⇧⌘R"),
                 HelpShortcut(action: "Print…", shortcut: "⌘P"),
             ]
         ),
@@ -26,6 +27,7 @@ enum HelpReference {
                 HelpShortcut(action: "Find…", shortcut: "⌘F"),
                 HelpShortcut(action: "Find Next", shortcut: "⌘G"),
                 HelpShortcut(action: "Find Previous", shortcut: "⇧⌘G"),
+                HelpShortcut(action: "Insert Checklist Item", shortcut: "⇧⌘L"),
             ]
         ),
         (
@@ -34,6 +36,8 @@ enum HelpReference {
                 HelpShortcut(action: "Toggle Preview", shortcut: "⌥⌘P"),
                 HelpShortcut(action: "Focus Mode", shortcut: "⌃⌘F"),
                 HelpShortcut(action: "Preferences…", shortcut: "⌘,"),
+                HelpShortcut(action: "Formatting Hints…", shortcut: "⇧⌘/"),
+                HelpShortcut(action: "Close Panel", shortcut: "Esc"),
             ]
         ),
     ]

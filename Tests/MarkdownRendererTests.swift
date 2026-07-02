@@ -1,5 +1,5 @@
 import Testing
-@testable import BywordEditorCore
+@testable import LabWordCore
 
 @Suite("MarkdownRenderer")
 struct MarkdownRendererTests {
@@ -15,5 +15,14 @@ struct MarkdownRendererTests {
     func bold() {
         let html = renderer.renderHTML(from: "**bold**")
         #expect(html.contains("<strong>bold</strong>"))
+    }
+
+    @Test("renders task list checkboxes in preview")
+    func taskList() {
+        let html = renderer.renderHTML(from: "- [ ] Todo\n- [x] Done")
+        #expect(html.contains("class=\"task-list\""))
+        #expect(html.contains("type=\"checkbox\""))
+        #expect(html.contains("Todo"))
+        #expect(html.contains("checked"))
     }
 }

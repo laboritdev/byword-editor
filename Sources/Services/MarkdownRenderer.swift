@@ -2,23 +2,82 @@ import Foundation
 import Markdown
 
 public final class MarkdownRenderer {
+    private static let taskLinePattern = try! NSRegularExpression(
+        pattern: #"^\s*[-*+]\s+\[( |x|X)\]\s+(.*)$"#,
+        options: []
+    )
+
     public init() {}
 
     public func renderHTML(from markdown: String) -> String {
+        let body = renderMixedBody(from: markdown)
+        return wrapDocument(body: body)
+    }
+
+    private func renderMixedBody(from markdown: String) -> String {
+        let lines = markdown.components(separatedBy: "\n")
+        var output: [String] = []
+        var taskItems: [(checked: Bool, label: String)] = []
+        var markdownBuffer: [String] = []
+
+        func flushTasks() {
+            guard !taskItems.isEmpty else { return }
+            output.append(renderTaskListHTML(taskItems))
+            taskItems.removeAll()
+        }
+
+        func flushMarkdown() {
+            guard !markdownBuffer.isEmpty else { return }
+            let fragment = markdownBuffer.joined(separator: "\n")
+            markdownBuffer.removeAll()
+            output.append(renderMarkdownFragment(fragment))
+        }
+
+        for line in lines {
+            if let task = parseTaskLine(line) {
+                flushMarkdown()
+                taskItems.append(task)
+            } else {
+                flushTasks()
+                markdownBuffer.append(line)
+            }
+        }
+
+        flushTasks()
+        flushMarkdown()
+        return output.joined()
+    }
+
+    private func parseTaskLine(_ line: String) -> (checked: Bool, label: String)? {
+        let range = NSRange(location: 0, length: (line as NSString).length)
+        guard let match = Self.taskLinePattern.firstMatch(in: line, options: [], range: range) else {
+            return nil
+        }
+        let nsLine = line as NSString
+        let state = nsLine.substring(with: match.range(at: 1))
+        let label = nsLine.substring(with: match.range(at: 2))
+        return (state.lowercased() == "x", label)
+    }
+
+    private func renderTaskListHTML(_ items: [(checked: Bool, label: String)]) -> String {
+        var html = "<ul class=\"task-list\">\n"
+        for item in items {
+            let checkedAttribute = item.checked ? " checked" : ""
+            html += "<li><label><input type=\"checkbox\" disabled\(checkedAttribute)> \(escapeHTML(item.label))</label></li>\n"
+        }
+        html += "</ul>\n"
+        return html
+    }
+
+    private func renderMarkdownFragment(_ markdown: String) -> String {
+        guard !markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "" }
         let document = Document(parsing: markdown)
         var visitor = HTMLVisitor()
         return visitor.visit(document)
     }
-}
 
-private struct HTMLVisitor: MarkupVisitor {
-    mutating func defaultVisit(_ markup: Markup) -> String {
-        markup.children.map { visit($0) }.joined()
-    }
-
-    mutating func visitDocument(_ document: Document) -> String {
-        let body = defaultVisit(document)
-        return """
+    private func wrapDocument(body: String) -> String {
+        """
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -33,11 +92,32 @@ private struct HTMLVisitor: MarkupVisitor {
         th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
         img { max-width: 100%; }
         hr { border: none; border-top: 1px solid #ddd; margin: 2rem 0; }
+        ul.task-list { list-style: none; padding-left: 0; }
+        ul.task-list li { margin: 0.35rem 0; }
+        ul.task-list input { margin-right: 0.5rem; }
         </style>
         </head>
         <body>\(body)</body>
         </html>
         """
+    }
+
+    private func escapeHTML(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+    }
+}
+
+private struct HTMLVisitor: MarkupVisitor {
+    mutating func defaultVisit(_ markup: Markup) -> String {
+        markup.children.map { visit($0) }.joined()
+    }
+
+    mutating func visitDocument(_ document: Document) -> String {
+        defaultVisit(document)
     }
 
     mutating func visitHeading(_ heading: Heading) -> String {
@@ -50,7 +130,7 @@ private struct HTMLVisitor: MarkupVisitor {
     }
 
     mutating func visitText(_ text: Text) -> String {
-        escapeHTML(text.plainText)
+        escapeHTML(text.string)
     }
 
     mutating func visitEmphasis(_ emphasis: Emphasis) -> String {

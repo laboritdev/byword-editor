@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "BywordEditor",
+    name: "LabWord",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "BywordEditor", targets: ["BywordEditor"]),
-        .library(name: "BywordEditorCore", targets: ["BywordEditorCore"]),
+        .executable(name: "LabWord", targets: ["LabWord"]),
+        .library(name: "LabWordCore", targets: ["LabWordCore"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.5.0"),
@@ -14,22 +14,22 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "BywordEditorCore",
+            name: "LabWordCore",
             dependencies: [
                 .product(name: "Markdown", package: "swift-markdown"),
             ],
             path: "Sources"
         ),
         .executableTarget(
-            name: "BywordEditor",
-            dependencies: ["BywordEditorCore"],
+            name: "LabWord",
+            dependencies: ["LabWordCore"],
             path: "Entry",
             sources: ["Entry.swift"]
         ),
         .testTarget(
-            name: "BywordEditorTests",
+            name: "LabWordTests",
             dependencies: [
-                "BywordEditorCore",
+                "LabWordCore",
                 .product(name: "Testing", package: "swift-testing"),
             ],
             path: "Tests"

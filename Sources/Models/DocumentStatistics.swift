@@ -21,6 +21,8 @@ public struct DocumentStatistics: Equatable {
     }
 
     var statusText: String {
-        "\(wordCount) words · \(characterCount) characters · \(lineCount) lines · ~\(readingMinutes) min read"
+        let wordLabel = wordCount == 1 ? "word" : "words"
+        let charLabel = characterCount == 1 ? "character" : "characters"
+        return "Markdown · \(wordCount) \(wordLabel) · \(characterCount) \(charLabel)"
     }
 }

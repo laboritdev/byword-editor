@@ -1,6 +1,6 @@
-# BywordEditor
+# LabWord
 
-A fast, elegant, minimalist Markdown editor for macOS inspired by the Byword philosophy.
+A fast, elegant, minimalist Markdown editor for macOS by [Laborit](https://laborit.com.br).
 
 ## Philosophy
 
@@ -18,7 +18,7 @@ A fast, elegant, minimalist Markdown editor for macOS inspired by the Byword phi
 ## Project layout
 
 ```
-Sources/          BywordEditorCore library (MVVM layers)
+Sources/          LabWordCore library (MVVM layers)
   App/            App state, commands, scenes
   Editor/         NSTextView editor, syntax highlighting, find/replace
   Preview/        HTML preview
@@ -28,25 +28,25 @@ Sources/          BywordEditorCore library (MVVM layers)
   Shared/         Constants, extensions, focus mode
 Entry/            Thin executable with @main only
 Tests/            Swift Testing unit tests for services
-Info.plist        Document types for Xcode app bundle
+Info.plist        Document types for app bundle
 .specs/           Spec-driven project docs
 ```
 
 ## Install
 
-### Homebrew (recommended)
+### Homebrew
 
 ```bash
 brew tap laboritdev/tap
 brew trust laboritdev/tap
-brew install --cask byword-editor
+brew install --cask labword
 ```
 
-If macOS shows **"damaged and can't be opened"**, the build is not yet notarized. See [packaging/SIGNING.md](packaging/SIGNING.md). Temporary fix:
+If macOS shows **"damaged and can't be opened"**, see [packaging/SIGNING.md](packaging/SIGNING.md). Temporary fix:
 
 ```bash
-xattr -cr /Applications/BywordEditor.app
-open /Applications/BywordEditor.app
+xattr -cr /Applications/LabWord.app
+open /Applications/LabWord.app
 ```
 
 ## Release (maintainers)
@@ -66,7 +66,7 @@ Local release build:
 
 ```bash
 make release-local VERSION=1.0.0
-# Output: dist/BywordEditor-1.0.0-macos-arm64.zip
+# Output: dist/LabWord-1.0.0-macos-arm64.zip
 ```
 
 ## Build (development)
@@ -80,26 +80,31 @@ make xcode    # open in Xcode
 make clean    # remove build artifacts
 ```
 
-Inside the app: **Help → BywordEditor Help** (⌘H) shows keyboard shortcuts and `make` commands.
+Inside the app: **Help → LabWord Help** (⌘H) shows keyboard shortcuts and `make` commands.
 
 ```bash
 xcrun swift build
 ```
 
-The CLI build produces a command-line binary. For a full macOS app experience (menus, document association, `.app` bundle), use Xcode:
+For a full macOS app experience (menus, document association, `.app` bundle):
 
 ```bash
-open Package.swift
+make release-local
+open dist/LabWord.app
 ```
 
-In Xcode: select the **BywordEditor** scheme, then **Product → Run** (⌘R).
+Or open in Xcode:
 
-To attach document types and bundle metadata, add `Info.plist` to the executable target in Xcode (File → New → File from `Info.plist` at the repo root).
+```bash
+make xcode
+```
+
+Select the **LabWord** scheme, then **Product → Run** (⌘R).
 
 ## Run (CLI binary)
 
 ```bash
-xcrun swift run BywordEditor
+xcrun swift run LabWord
 ```
 
 ## Tests
@@ -108,7 +113,7 @@ xcrun swift run BywordEditor
 xcrun swift test
 ```
 
-Uses [Swift Testing](https://github.com/swiftlang/swift-testing) with `@testable import BywordEditorCore`.
+Uses [Swift Testing](https://github.com/swiftlang/swift-testing) with `@testable import LabWordCore`.
 
 ## Features
 
@@ -128,5 +133,5 @@ Uses [Swift Testing](https://github.com/swiftlang/swift-testing) with `@testable
 ## Architecture
 
 - **MVVM**: Views, ViewModels, Services, Models
-- **BywordEditorCore**: library target with all application logic
-- **BywordEditor**: executable entry point (`Entry/Entry.swift`)
+- **LabWordCore**: library target with all application logic
+- **LabWord**: executable entry point (`Entry/Entry.swift`)

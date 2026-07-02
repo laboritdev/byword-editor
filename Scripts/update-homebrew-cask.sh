@@ -6,27 +6,27 @@ VERSION="${1:?Usage: $0 <version> <sha256> [arch]}"
 SHA256="${2:?Usage: $0 <version> <sha256> [arch]}"
 ARCH="${3:-arm64}"
 
-CASK_PATH="$ROOT/packaging/homebrew/Casks/byword-editor.rb"
+CASK_PATH="$ROOT/packaging/homebrew/Casks/labword.rb"
 TAG="v${VERSION#v}"
-URL="https://github.com/laboritdev/byword-editor/releases/download/${TAG}/BywordEditor-${VERSION}-macos-${ARCH}.zip"
+URL="https://github.com/laboritdev/labword/releases/download/${TAG}/LabWord-${VERSION}-macos-${ARCH}.zip"
 
 cat > "$CASK_PATH" <<RUBY
-cask "byword-editor" do
+cask "labword" do
   version "${VERSION#v}"
   sha256 "${SHA256}"
 
   url "${URL}"
-  name "BywordEditor"
-  desc "Minimalist Markdown editor for macOS"
-  homepage "https://github.com/laboritdev/byword-editor"
+  name "LabWord"
+  desc "Minimalist Markdown editor for macOS by Laborit"
+  homepage "https://github.com/laboritdev/labword"
 
   depends_on macos: :sonoma
 
-  app "BywordEditor.app"
+  app "LabWord.app"
 
   zap trash: [
-    "~/Library/Application Support/BywordEditor",
-    "~/Library/Preferences/com.bywordeditor.app.plist",
+    "~/Library/Application Support/LabWord",
+    "~/Library/Preferences/com.labword.app.plist",
   ]
 end
 RUBY

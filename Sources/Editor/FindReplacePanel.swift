@@ -19,7 +19,7 @@ struct FindReplacePanel: View {
                 Button("Replace All") { viewModel.replaceAllMatches() }
 
                 Button {
-                    viewModel.hideFindPanel()
+                    viewModel.dismissPanel()
                 } label: {
                     Image(systemName: "xmark")
                 }

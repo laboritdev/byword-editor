@@ -23,17 +23,14 @@ enum FontFamily: String, Codable, CaseIterable, Identifiable {
     func nsFont(size: CGFloat) -> NSFont {
         switch self {
         case .systemSerif:
-            if let font = NSFont(name: "New York", size: size) {
-                return font
-            }
-            return NSFont.systemFont(ofSize: size, weight: .regular)
+            return Self.serifFont(size: size)
         case .systemMono:
             return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
         case .newYork:
             if let font = NSFont(name: "New York", size: size) {
                 return font
             }
-            return NSFont.systemFont(ofSize: size, weight: .regular)
+            return Self.serifFont(size: size)
         case .menlo:
             if let font = NSFont(name: "Menlo", size: size) {
                 return font
@@ -46,6 +43,18 @@ enum FontFamily: String, Codable, CaseIterable, Identifiable {
             return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
         }
     }
+
+    private static func serifFont(size: CGFloat) -> NSFont {
+        for name in ["New York", "Iowan Old Style", "Georgia", "Palatino", "Times New Roman"] {
+            if let font = NSFont(name: name, size: size) {
+                return font
+            }
+        }
+        if let descriptor = NSFont.systemFont(ofSize: size).fontDescriptor.withDesign(.serif) {
+            return NSFont(descriptor: descriptor, size: size) ?? NSFont.systemFont(ofSize: size, weight: .light)
+        }
+        return NSFont.systemFont(ofSize: size, weight: .light)
+    }
 }
 
 struct EditorPreferences: Codable, Equatable {
@@ -55,23 +64,32 @@ struct EditorPreferences: Codable, Equatable {
     var columnWidth: CGFloat
     var horizontalMargin: CGFloat
     var appearanceMode: AppearanceMode
+    var colorTheme: ColorTheme
+    var syntaxHighlightMode: SyntaxHighlightMode
+    var centerColumn: Bool
     var showWordCount: Bool
     var showStatusBar: Bool
+    var showIntroDemo: Bool
 
     static let `default` = EditorPreferences(
-        fontFamily: .systemSerif,
+        fontFamily: .systemMono,
         fontSize: Constants.defaultFontSize,
         lineHeight: Constants.defaultLineHeight,
         columnWidth: Constants.defaultColumnWidth,
         horizontalMargin: Constants.defaultHorizontalMargin,
         appearanceMode: .system,
+        colorTheme: .classic,
+        syntaxHighlightMode: .subtle,
+        centerColumn: true,
         showWordCount: true,
-        showStatusBar: true
+        showStatusBar: true,
+        showIntroDemo: true
     )
 
     private enum CodingKeys: String, CodingKey {
         case fontFamily, fontSize, lineHeight, columnWidth
-        case horizontalMargin, appearanceMode, showWordCount, showStatusBar
+        case horizontalMargin, appearanceMode, colorTheme, syntaxHighlightMode
+        case centerColumn, showWordCount, showStatusBar, showIntroDemo
     }
 
     init(
@@ -81,8 +99,12 @@ struct EditorPreferences: Codable, Equatable {
         columnWidth: CGFloat,
         horizontalMargin: CGFloat,
         appearanceMode: AppearanceMode,
+        colorTheme: ColorTheme,
+        syntaxHighlightMode: SyntaxHighlightMode,
+        centerColumn: Bool,
         showWordCount: Bool,
-        showStatusBar: Bool
+        showStatusBar: Bool,
+        showIntroDemo: Bool = true
     ) {
         self.fontFamily = fontFamily
         self.fontSize = fontSize
@@ -90,8 +112,12 @@ struct EditorPreferences: Codable, Equatable {
         self.columnWidth = columnWidth
         self.horizontalMargin = horizontalMargin
         self.appearanceMode = appearanceMode
+        self.colorTheme = colorTheme
+        self.syntaxHighlightMode = syntaxHighlightMode
+        self.centerColumn = centerColumn
         self.showWordCount = showWordCount
         self.showStatusBar = showStatusBar
+        self.showIntroDemo = showIntroDemo
     }
 
     init(from decoder: Decoder) throws {
@@ -102,8 +128,15 @@ struct EditorPreferences: Codable, Equatable {
         columnWidth = try container.decode(CGFloat.self, forKey: .columnWidth)
         horizontalMargin = try container.decode(CGFloat.self, forKey: .horizontalMargin)
         appearanceMode = try container.decode(AppearanceMode.self, forKey: .appearanceMode)
+        colorTheme = try container.decodeIfPresent(ColorTheme.self, forKey: .colorTheme) ?? .classic
+        syntaxHighlightMode = try container.decodeIfPresent(
+            SyntaxHighlightMode.self,
+            forKey: .syntaxHighlightMode
+        ) ?? .subtle
+        centerColumn = try container.decodeIfPresent(Bool.self, forKey: .centerColumn) ?? true
         showWordCount = try container.decode(Bool.self, forKey: .showWordCount)
         showStatusBar = try container.decode(Bool.self, forKey: .showStatusBar)
+        showIntroDemo = try container.decodeIfPresent(Bool.self, forKey: .showIntroDemo) ?? true
     }
 }
 
@@ -133,5 +166,17 @@ final class PreferencesStore: ObservableObject {
         if let data = try? JSONEncoder().encode(preferences) {
             UserDefaults.standard.set(data, forKey: storageKey)
         }
+    }
+
+    func increaseFontSize() {
+        let next = min(preferences.fontSize + Constants.fontSizeStep, Constants.maximumFontSize)
+        guard next != preferences.fontSize else { return }
+        preferences.fontSize = next
+    }
+
+    func decreaseFontSize() {
+        let next = max(preferences.fontSize - Constants.fontSizeStep, Constants.minimumFontSize)
+        guard next != preferences.fontSize else { return }
+        preferences.fontSize = next
     }
 }

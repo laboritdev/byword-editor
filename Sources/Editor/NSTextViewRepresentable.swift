@@ -16,6 +16,7 @@ struct EditorConfiguration: Equatable {
     var horizontalMargin: CGFloat
     var columnWidth: CGFloat
     var syntaxColors: EditorColorsNS
+    var syntaxHighlightMode: SyntaxHighlightMode
     var isDarkMode: Bool
 
     static func == (lhs: EditorConfiguration, rhs: EditorConfiguration) -> Bool {
@@ -27,6 +28,7 @@ struct EditorConfiguration: Equatable {
             && lhs.horizontalMargin == rhs.horizontalMargin
             && lhs.columnWidth == rhs.columnWidth
             && lhs.syntaxColors == rhs.syntaxColors
+            && lhs.syntaxHighlightMode == rhs.syntaxHighlightMode
             && lhs.isDarkMode == rhs.isDarkMode
     }
 }
@@ -38,12 +40,15 @@ struct NSTextViewRepresentable: NSViewRepresentable {
     var selectionLength: Int
     var scrollOffset: Double
     var delegate: EditorTextViewDelegate?
+    var onToggleCheckbox: ((Int) -> TaskListEditResult?)?
+    var onListContinuation: ((Int, String) -> TaskListEditResult?)?
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = MarkdownScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .noBorder
         scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
         scrollView.drawsBackground = true
         scrollView.appearance = NSAppearance(
             named: configuration.isDarkMode ? .darkAqua : .aqua
@@ -70,9 +75,15 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.textContainerInset = NSSize(
             width: configuration.horizontalMargin,
-            height: 48
+            height: EditorTypography.verticalTextInset
         )
         textView.delegate = context.coordinator
+        textView.onToggleCheckbox = { [weak coordinator = context.coordinator] index in
+            coordinator?.handleCheckboxClick(at: index) ?? false
+        }
+        textView.onListContinuation = { [weak coordinator = context.coordinator] location in
+            coordinator?.handleListContinuation(at: location) ?? false
+        }
 
         scrollView.documentView = textView
         scrollView.hasHorizontalScroller = false
@@ -99,16 +110,25 @@ struct NSTextViewRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard scrollView.documentView is MarkdownTextView else { return }
+        guard let textView = scrollView.documentView as? MarkdownTextView else { return }
         context.coordinator.parent = self
         context.coordinator.delegate = delegate
+        context.coordinator.onToggleCheckbox = onToggleCheckbox
+        context.coordinator.onListContinuation = onListContinuation
+        textView.onToggleCheckbox = { [weak coordinator = context.coordinator] index in
+            coordinator?.handleCheckboxClick(at: index) ?? false
+        }
+        textView.onListContinuation = { [weak coordinator = context.coordinator] location in
+            coordinator?.handleListContinuation(at: location) ?? false
+        }
 
         if context.coordinator.lastConfiguration != configuration {
             context.coordinator.lastConfiguration = configuration
             context.coordinator.applyConfiguration(configuration)
         }
 
-        if context.coordinator.lastKnownText != text {
+        if context.coordinator.lastKnownText != text
+            || context.coordinator.lastKnownCursor != cursorLocation {
             context.coordinator.setText(text, cursorLocation: cursorLocation, selectionLength: selectionLength)
         }
 
@@ -127,7 +147,10 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         weak var textView: MarkdownTextView?
         weak var scrollView: NSScrollView?
         weak var delegate: EditorTextViewDelegate?
+        var onToggleCheckbox: ((Int) -> TaskListEditResult?)?
+        var onListContinuation: ((Int, String) -> TaskListEditResult?)?
         var lastKnownText: String = ""
+        var lastKnownCursor: Int = 0
         var lastScrollOffset: Double = 0
         var lastConfiguration: EditorConfiguration?
         private let highlighter = MarkdownSyntaxHighlighter()
@@ -135,6 +158,42 @@ struct NSTextViewRepresentable: NSViewRepresentable {
 
         init(parent: NSTextViewRepresentable) {
             self.parent = parent
+        }
+
+        func handleCheckboxClick(at index: Int) -> Bool {
+            guard let result = onToggleCheckbox?(index) else { return false }
+            setText(result.text, cursorLocation: result.cursorLocation, selectionLength: 0)
+            delegate?.editorSelectionDidChange(location: result.cursorLocation, length: 0)
+            return true
+        }
+
+        func handleListContinuation(at location: Int) -> Bool {
+            guard let textView else { return false }
+            guard let result = onListContinuation?(location, textView.string) else { return false }
+            applyStructuralEdit(text: result.text, cursorLocation: result.cursorLocation)
+            return true
+        }
+
+        private func applyStructuralEdit(text: String, cursorLocation: Int) {
+            setText(text, cursorLocation: cursorLocation, selectionLength: 0)
+            delegate?.editorSelectionDidChange(location: cursorLocation, length: 0)
+
+            guard let textView else { return }
+            let nsText = text as NSString
+            let safeLocation = min(max(0, cursorLocation), nsText.length)
+            textView.scrollRangeToVisible(NSRange(location: safeLocation, length: 0))
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let textView = self.textView else { return }
+                let length = (textView.string as NSString).length
+                let cursor = min(max(0, cursorLocation), length)
+                self.isUpdating = true
+                textView.setSelectedRange(NSRange(location: cursor, length: 0))
+                textView.scrollRangeToVisible(NSRange(location: cursor, length: 0))
+                self.isUpdating = false
+                self.lastKnownCursor = cursor
+                self.delegate?.editorSelectionDidChange(location: cursor, length: 0)
+            }
         }
 
         func applyConfiguration(_ configuration: EditorConfiguration) {
@@ -156,27 +215,28 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             textView.font = font
             textView.insertionPointColor = textColor
             textView.selectedTextAttributes = [
-                .backgroundColor: NSColor.selectedTextBackgroundColor,
+                .backgroundColor: configuration.syntaxColors.selection.editorFixed,
                 .foregroundColor: textColor,
             ]
-            textView.typingAttributes = [
-                .font: font,
-                .foregroundColor: textColor,
-            ]
+            textView.typingAttributes = baseAttributes(for: configuration)
             textView.textContainer?.containerSize = NSSize(
                 width: configuration.columnWidth,
                 height: CGFloat.greatestFiniteMagnitude
             )
-            textView.textContainerInset = NSSize(width: configuration.horizontalMargin, height: 48)
+            textView.textContainerInset = NSSize(
+                width: configuration.horizontalMargin,
+                height: EditorTypography.verticalTextInset
+            )
             refreshHighlighting(configuration: configuration)
             textView.needsDisplay = true
         }
 
         private func baseAttributes(for configuration: EditorConfiguration) -> [NSAttributedString.Key: Any] {
-            [
-                .font: configuration.font,
-                .foregroundColor: configuration.textColor.editorFixed,
-            ]
+            EditorTypography.baseAttributes(
+                font: configuration.font,
+                textColor: configuration.textColor,
+                lineHeight: configuration.lineHeight
+            )
         }
 
         func setText(_ text: String, cursorLocation: Int, selectionLength: Int) {
@@ -198,6 +258,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             let safeLength = min(selectionLength, nsString.length - safeLocation)
             textView.setSelectedRange(NSRange(location: safeLocation, length: safeLength))
             lastKnownText = text
+            lastKnownCursor = safeLocation
         }
 
         func setScrollOffset(_ offset: Double) {
@@ -225,6 +286,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard !isUpdating, let textView else { return }
             let newText = textView.string
+            guard newText != lastKnownText else { return }
             lastKnownText = newText
             parent.text = newText
             delegate?.editorTextDidChange(newText)
@@ -245,13 +307,16 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             let baseStyle = SyntaxStyle(
                 font: configuration.font,
                 foregroundColor: configuration.textColor.editorFixed,
-                backgroundColor: nil
+                backgroundColor: configuration.backgroundColor.editorFixed,
+                lineHeight: configuration.lineHeight,
+                isDarkMode: configuration.isDarkMode
             )
             highlighter.applyHighlighting(
                 to: storage,
                 in: range,
                 baseStyle: baseStyle,
-                colors: configuration.syntaxColors
+                colors: configuration.syntaxColors,
+                mode: configuration.syntaxHighlightMode
             )
         }
     }
@@ -259,4 +324,23 @@ struct NSTextViewRepresentable: NSViewRepresentable {
 
 final class MarkdownScrollView: NSScrollView {}
 
-final class MarkdownTextView: NSTextView {}
+final class MarkdownTextView: NSTextView {
+    var onToggleCheckbox: ((Int) -> Bool)?
+    var onListContinuation: ((Int) -> Bool)?
+
+    override func insertNewline(_ sender: Any?) {
+        if onListContinuation?(selectedRange().location) == true {
+            return
+        }
+        super.insertNewline(sender)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let index = characterIndexForInsertion(at: point)
+        if onToggleCheckbox?(index) == true {
+            return
+        }
+        super.mouseDown(with: event)
+    }
+}

@@ -26,11 +26,25 @@ public final class AppState: ObservableObject {
         documents.first { $0.snapshot.id == id }
     }
 
-    func createUntitledDocument() -> EditorViewModel {
-        let snapshot = DocumentSnapshot()
+    func createUntitledDocument(id: UUID? = nil) -> EditorViewModel {
+        if let id, let existing = document(with: id) {
+            return existing
+        }
+        let content = IntroDemoContent.initialContent(
+            showIntroDemo: PreferencesStore.shared.preferences.showIntroDemo
+        )
+        let snapshot = DocumentSnapshot(id: id ?? UUID(), content: content)
         let viewModel = makeViewModel(snapshot: snapshot)
         documents.append(viewModel)
+        saveSession()
         return viewModel
+    }
+
+    func resolveDocument(forWindow documentID: UUID) -> EditorViewModel {
+        if let existing = document(with: documentID) {
+            return existing
+        }
+        return createUntitledDocument(id: documentID)
     }
 
     func openDocument(at url: URL) -> EditorViewModel? {
@@ -75,20 +89,16 @@ public final class AppState: ObservableObject {
     }
 
     func restoreSessionIfNeeded() {
-        guard let session = sessionService.loadSession(), !session.documents.isEmpty else {
+        guard let session = sessionService.loadSession(), let first = session.documents.first else {
             _ = createUntitledDocument()
             return
         }
 
-        for state in session.documents {
-            if let recovery = recoveryService.loadRecoverySnapshot(for: state.recoveryID) {
-                _ = openDocumentFromRecovery(recovery)
-            } else if let fileURL = state.fileURL {
-                _ = openDocument(at: fileURL)
-            }
-        }
-
-        if documents.isEmpty {
+        if let recovery = recoveryService.loadRecoverySnapshot(for: first.recoveryID) {
+            _ = openDocumentFromRecovery(recovery)
+        } else if let fileURL = first.fileURL {
+            _ = openDocument(at: fileURL)
+        } else {
             _ = createUntitledDocument()
         }
     }

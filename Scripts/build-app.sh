@@ -2,20 +2,22 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="BywordEditor"
+APP_NAME="LabWord"
+EXECUTABLE_NAME="LabWord"
 VERSION="${1:-$(tr -d '[:space:]' < "$ROOT/VERSION")}"
 ARCH="${2:-$(uname -m)}"
 DIST_DIR="$ROOT/dist"
 APP_BUNDLE="$DIST_DIR/${APP_NAME}.app"
+APP_SLUG="LabWord"
 
 cd "$ROOT"
 
 echo "Building ${APP_NAME} ${VERSION} (${ARCH})…"
 
-xcrun swift build -c release --product BywordEditor
+xcrun swift build -c release --product LabWord
 
-BIN_DIR="$(xcrun swift build -c release --product BywordEditor --show-bin-path)"
-BINARY="$BIN_DIR/${APP_NAME}"
+BIN_DIR="$(xcrun swift build -c release --product LabWord --show-bin-path)"
+BINARY="$BIN_DIR/${EXECUTABLE_NAME}"
 
 if [[ ! -f "$BINARY" ]]; then
   echo "error: binary not found at $BINARY" >&2
@@ -30,13 +32,20 @@ cp "$ROOT/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$APP_BUNDLE/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "$APP_BUNDLE/Contents/Info.plist"
 
-cp "$BINARY" "$APP_BUNDLE/Contents/MacOS/${APP_NAME}"
-chmod +x "$APP_BUNDLE/Contents/MacOS/${APP_NAME}"
+cp "$BINARY" "$APP_BUNDLE/Contents/MacOS/${EXECUTABLE_NAME}"
+chmod +x "$APP_BUNDLE/Contents/MacOS/${EXECUTABLE_NAME}"
+
+ICONSET="$ROOT/Resources/AppIcon.iconset"
+ICNS="$ROOT/Resources/AppIcon.icns"
+if [[ -d "$ICONSET" ]]; then
+  iconutil --convert icns --output "$ICNS" "$ICONSET"
+  cp "$ICNS" "$APP_BUNDLE/Contents/Resources/"
+fi
 
 chmod +x "$ROOT/Scripts/sign-app.sh"
 "$ROOT/Scripts/sign-app.sh" "$APP_BUNDLE"
 
-ZIP_NAME="${APP_NAME}-${VERSION}-macos-${ARCH}.zip"
+ZIP_NAME="${APP_SLUG}-${VERSION}-macos-${ARCH}.zip"
 ZIP_PATH="$DIST_DIR/${ZIP_NAME}"
 
 rm -f "$ZIP_PATH"

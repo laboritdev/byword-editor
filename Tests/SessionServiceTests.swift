@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import BywordEditorCore
+@testable import LabWordCore
 
 @Suite("SessionService")
 struct SessionServiceTests {
