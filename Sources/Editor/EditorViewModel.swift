@@ -54,21 +54,31 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     func loadFromURL(_ url: URL) {
         do {
             let loaded = try documentService.load(from: url)
-            blockDocument = BlockDocument(markdown: loaded)
-            mutateSnapshot {
-                $0.fileURL = url
-                $0.content = blockDocument.markdown
-                $0.isDirty = false
-                $0.cursorLocation = 0
-                $0.selectionLength = 0
-                $0.scrollOffset = 0
-            }
-            statistics = DocumentStatistics.compute(from: blockDocument.markdown)
+            applyLoadedContent(loaded, fileURL: url, isDirty: false)
             recentFilesService.addRecentFile(url)
             recoveryService.saveRecoverySnapshot(from: snapshot)
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func reloadFromURLIfNeeded() {
+        guard let url = snapshot.fileURL else { return }
+        guard snapshot.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        loadFromURL(url)
+    }
+
+    private func applyLoadedContent(_ loaded: String, fileURL: URL?, isDirty: Bool) {
+        blockDocument = BlockDocument(markdown: loaded)
+        mutateSnapshot {
+            $0.fileURL = fileURL
+            $0.content = blockDocument.markdown
+            $0.isDirty = isDirty
+            $0.cursorLocation = 0
+            $0.selectionLength = 0
+            $0.scrollOffset = 0
+        }
+        statistics = DocumentStatistics.compute(from: blockDocument.markdown)
     }
 
     func saveAs(to url: URL) {

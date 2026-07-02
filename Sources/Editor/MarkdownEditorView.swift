@@ -74,7 +74,7 @@ struct MarkdownEditorView: View {
         GeometryReader { geometry in
             NSTextViewRepresentable(
                 text: Binding(
-                    get: { viewModel.content },
+                    get: { viewModel.snapshot.content },
                     set: { viewModel.content = $0 }
                 ),
                 configuration: editorConfiguration(containerWidth: geometry.size.width),

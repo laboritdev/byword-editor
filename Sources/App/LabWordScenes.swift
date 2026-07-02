@@ -77,7 +77,7 @@ private struct DocumentSceneView: View {
         if documentID != nil {
             return
         }
-        if appState.documents.count == 1 {
+        if !appState.documents.isEmpty {
             return
         }
         if fallbackDocumentID == nil {

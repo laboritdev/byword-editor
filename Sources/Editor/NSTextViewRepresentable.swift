@@ -127,8 +127,9 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             context.coordinator.applyConfiguration(configuration)
         }
 
-        if context.coordinator.lastKnownText != text
-            || context.coordinator.lastKnownCursor != cursorLocation {
+        if textView.string != text
+            || context.coordinator.lastKnownCursor != cursorLocation
+            || context.coordinator.lastKnownSelectionLength != selectionLength {
             context.coordinator.setText(text, cursorLocation: cursorLocation, selectionLength: selectionLength)
         }
 
@@ -151,6 +152,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         var onListContinuation: ((Int, String) -> TaskListEditResult?)?
         var lastKnownText: String = ""
         var lastKnownCursor: Int = 0
+        var lastKnownSelectionLength: Int = 0
         var lastScrollOffset: Double = 0
         var lastConfiguration: EditorConfiguration?
         private let highlighter = MarkdownSyntaxHighlighter()
@@ -259,6 +261,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
             textView.setSelectedRange(NSRange(location: safeLocation, length: safeLength))
             lastKnownText = text
             lastKnownCursor = safeLocation
+            lastKnownSelectionLength = safeLength
         }
 
         func setScrollOffset(_ offset: Double) {

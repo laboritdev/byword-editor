@@ -49,6 +49,7 @@ public final class AppState: ObservableObject {
 
     func openDocument(at url: URL) -> EditorViewModel? {
         if let existing = documents.first(where: { $0.snapshot.fileURL == url }) {
+            existing.reloadFromURLIfNeeded()
             return existing
         }
         let snapshot = DocumentSnapshot(fileURL: url)
@@ -90,17 +91,31 @@ public final class AppState: ObservableObject {
 
     func restoreSessionIfNeeded() {
         guard let session = sessionService.loadSession(), let first = session.documents.first else {
-            _ = createUntitledDocument()
             return
         }
 
         if let recovery = recoveryService.loadRecoverySnapshot(for: first.recoveryID) {
-            _ = openDocumentFromRecovery(recovery)
-        } else if let fileURL = first.fileURL {
-            _ = openDocument(at: fileURL)
-        } else {
-            _ = createUntitledDocument()
+            restoreDocument(from: recovery)
+            return
         }
+
+        if let fileURL = first.fileURL {
+            _ = openDocument(at: fileURL)
+        }
+    }
+
+    private func restoreDocument(from recovery: RecoverySnapshot) {
+        if let fileURL = recovery.fileURL {
+            _ = openDocument(at: fileURL)
+            return
+        }
+
+        if recovery.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            _ = createUntitledDocument(id: recovery.recoveryID)
+            return
+        }
+
+        _ = openDocumentFromRecovery(recovery)
     }
 
     func exportDocument(_ viewModel: EditorViewModel, format: ExportFormat) {

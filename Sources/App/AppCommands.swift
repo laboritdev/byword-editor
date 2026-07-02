@@ -187,6 +187,12 @@ struct AppCommands: Commands {
         ]
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
+            let accessed = url.startAccessingSecurityScopedResource()
+            defer {
+                if accessed {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
             if let document = appState.openDocument(at: url) {
                 openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
             }
