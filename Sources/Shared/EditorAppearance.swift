@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+@MainActor
 enum EditorAppearance {
     static func resolvedColorScheme(
         appearanceMode: AppearanceMode,
@@ -17,10 +18,10 @@ enum EditorAppearance {
     }
 
     static var isDarkEffectiveAppearance: Bool {
-        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        Self.isDark(NSApp.effectiveAppearance)
     }
 
-    static func isDark(_ appearance: NSAppearance) -> Bool {
+    nonisolated static func isDark(_ appearance: NSAppearance) -> Bool {
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
 }
