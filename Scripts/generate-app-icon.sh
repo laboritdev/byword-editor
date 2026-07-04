@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SOURCE="${1:-$ROOT/packaging/icon/text-by-laborit-icon-1024.png}"
-ZOOM_PERCENT="${2:-130}"
+ZOOM_PERCENT="${2:-155}"
 ICONSET="$ROOT/Resources/AppIcon.iconset"
 APPICONSET="$ROOT/Resources/AppIcon.appiconset"
 MASTER="$ROOT/packaging/icon/app-icon-master-1024.png"
