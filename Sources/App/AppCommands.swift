@@ -141,6 +141,12 @@ struct AppCommands: Commands {
             .keyboardShortcut("<", modifiers: [.command, .shift])
         }
 
+        CommandGroup(replacing: .appInfo) {
+            Button("About \(Constants.appName)") {
+                AboutPanel.show()
+            }
+        }
+
         CommandGroup(replacing: .appSettings) {
             Button("Advanced Preferences…") {
                 openSettings()

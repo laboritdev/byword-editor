@@ -61,9 +61,9 @@ enum TaskListService {
             range: NSRange(location: 0, length: lineLength)
         ) else { return nil }
 
-        let prefixEnd = match.range(at: 3).location + match.range(at: 3).length
         let clickOffset = location - lineRange.location
-        guard clickOffset >= 0, clickOffset <= prefixEnd else { return nil }
+        let maxClickOffset = taskPrefixMaxClickOffset(in: line, match: match)
+        guard clickOffset >= 0, clickOffset <= maxClickOffset else { return nil }
 
         let stateRange = match.range(at: 2)
         let currentState = (line as NSString).substring(with: stateRange)
@@ -72,6 +72,35 @@ enum TaskListService {
         let updatedText = nsText.replacingCharacters(in: lineRange, with: updatedLine)
         let cursor = lineRange.location + min(clickOffset, updatedLine.count)
         return TaskListEditResult(text: updatedText, cursorLocation: cursor)
+    }
+
+    static func taskPrefixMaxClickOffset(in line: String, match: NSTextCheckingResult) -> Int {
+        let nsLine = line as NSString
+        var maxIndex = match.range(at: 3).location + match.range(at: 3).length - 1
+        let afterBracket = maxIndex + 1
+        guard afterBracket < nsLine.length else { return maxIndex }
+
+        if nsLine.substring(with: NSRange(location: afterBracket, length: 1)) != " " {
+            return maxIndex
+        }
+
+        let bodyStart = afterBracket + 1
+        if bodyStart >= nsLine.length || nsLine.substring(from: bodyStart).isEmpty {
+            return afterBracket
+        }
+        return afterBracket
+    }
+
+    static func toggleCheckboxNear(in text: String, at location: Int) -> TaskListEditResult? {
+        if let result = toggleCheckbox(in: text, at: location) {
+            return result
+        }
+        for offset in 1...2 {
+            if let result = toggleCheckbox(in: text, at: location - offset) {
+                return result
+            }
+        }
+        return nil
     }
 
     static func insertTaskItem(in text: String, at location: Int, checked: Bool = false) -> TaskListEditResult {

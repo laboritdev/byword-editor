@@ -82,7 +82,7 @@ struct MarkdownEditorView: View {
                 selectionLength: viewModel.snapshot.selectionLength,
                 scrollOffset: viewModel.snapshot.scrollOffset,
                 delegate: viewModel,
-                onToggleCheckbox: { viewModel.toggleTaskCheckbox(at: $0) },
+                onToggleCheckbox: { viewModel.toggleTaskCheckbox(at: $0, in: $1) },
                 onListContinuation: { viewModel.handleListContinuation(at: $0, text: $1) }
             )
         }

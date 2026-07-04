@@ -42,7 +42,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
     var selectionLength: Int
     var scrollOffset: Double
     var delegate: EditorTextViewDelegate?
-    var onToggleCheckbox: ((Int) -> TaskListEditResult?)?
+    var onToggleCheckbox: ((Int, String) -> TaskListEditResult?)?
     var onListContinuation: ((Int, String) -> TaskListEditResult?)?
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -174,7 +174,7 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         weak var textView: MarkdownTextView?
         weak var scrollView: NSScrollView?
         weak var delegate: EditorTextViewDelegate?
-        var onToggleCheckbox: ((Int) -> TaskListEditResult?)?
+        var onToggleCheckbox: ((Int, String) -> TaskListEditResult?)?
         var onListContinuation: ((Int, String) -> TaskListEditResult?)?
         var lastKnownText: String = ""
         var lastKnownCursor: Int = 0
@@ -189,7 +189,8 @@ struct NSTextViewRepresentable: NSViewRepresentable {
         }
 
         func handleCheckboxClick(at index: Int) -> Bool {
-            guard let result = onToggleCheckbox?(index) else { return false }
+            guard let textView else { return false }
+            guard let result = onToggleCheckbox?(index, textView.string) else { return false }
             setText(result.text, cursorLocation: result.cursorLocation, selectionLength: 0)
             delegate?.editorSelectionDidChange(location: result.cursorLocation, length: 0)
             return true

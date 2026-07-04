@@ -32,6 +32,9 @@ cp "$ROOT/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$APP_BUNDLE/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "$APP_BUNDLE/Contents/Info.plist"
 
+GIT_SHA="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+/usr/libexec/PlistBuddy -c "Set :LabWordGitRevision ${GIT_SHA}" "$APP_BUNDLE/Contents/Info.plist"
+
 cp "$BINARY" "$APP_BUNDLE/Contents/MacOS/${EXECUTABLE_NAME}"
 chmod +x "$APP_BUNDLE/Contents/MacOS/${EXECUTABLE_NAME}"
 

@@ -200,8 +200,8 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
         commitBlockDocument(cursor: cursor)
     }
 
-    func toggleTaskCheckbox(at location: Int) -> TaskListEditResult? {
-        guard let result = TaskListService.toggleCheckbox(in: editorText, at: location) else {
+    func toggleTaskCheckbox(at location: Int, in text: String) -> TaskListEditResult? {
+        guard let result = TaskListService.toggleCheckboxNear(in: text, at: location) else {
             return nil
         }
 
