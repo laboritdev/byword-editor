@@ -21,27 +21,32 @@ enum FontFamily: String, Codable, CaseIterable, Identifiable {
     }
 
     func nsFont(size: CGFloat) -> NSFont {
+        let font: NSFont
         switch self {
         case .systemSerif:
-            return Self.serifFont(size: size)
+            font = Self.serifFont(size: size)
         case .systemMono:
-            return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+            font = Self.monoFont(size: size)
         case .newYork:
-            if let font = NSFont(name: "New York", size: size) {
-                return font
+            if let newYork = NSFont(name: "New York", size: size) {
+                font = newYork
+            } else {
+                font = Self.serifFont(size: size)
             }
-            return Self.serifFont(size: size)
         case .menlo:
-            if let font = NSFont(name: "Menlo", size: size) {
-                return font
+            if let menlo = NSFont(name: "Menlo", size: size) {
+                font = menlo
+            } else {
+                font = NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
             }
-            return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
         case .sfMono:
-            if let font = NSFont(name: "SF Mono", size: size) {
-                return font
+            if let sfMono = NSFont(name: "SF Mono", size: size) {
+                font = sfMono
+            } else {
+                font = NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
             }
-            return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
         }
+        return EditorFont.withCascade(font)
     }
 
     private static func serifFont(size: CGFloat) -> NSFont {
@@ -54,6 +59,15 @@ enum FontFamily: String, Codable, CaseIterable, Identifiable {
             return NSFont(descriptor: descriptor, size: size) ?? NSFont.systemFont(ofSize: size, weight: .light)
         }
         return NSFont.systemFont(ofSize: size, weight: .light)
+    }
+
+    private static func monoFont(size: CGFloat) -> NSFont {
+        for name in ["Menlo", "SF Mono", "SFMono-Regular", "Monaco"] {
+            if let font = NSFont(name: name, size: size) {
+                return font
+            }
+        }
+        return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
     }
 }
 

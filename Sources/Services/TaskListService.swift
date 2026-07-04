@@ -50,24 +50,57 @@ enum TaskListService {
     }
 
     static func toggleCheckbox(in text: String, at location: Int) -> TaskListEditResult? {
-        guard checkboxCharacterRange(in: text, at: location) != nil else { return nil }
         guard let lineRange = lineRange(in: text, at: location) else { return nil }
 
         let nsText = text as NSString
         let line = nsText.substring(with: lineRange)
+        let lineLength = (line as NSString).length
         guard let match = taskLinePattern.firstMatch(
             in: line,
             options: [],
-            range: NSRange(location: 0, length: (line as NSString).length)
+            range: NSRange(location: 0, length: lineLength)
         ) else { return nil }
+
+        let clickOffset = location - lineRange.location
+        let maxClickOffset = taskPrefixMaxClickOffset(in: line, match: match)
+        guard clickOffset >= 0, clickOffset <= maxClickOffset else { return nil }
 
         let stateRange = match.range(at: 2)
         let currentState = (line as NSString).substring(with: stateRange)
         let nextState = currentState == " " ? "x" : " "
         let updatedLine = (line as NSString).replacingCharacters(in: stateRange, with: nextState)
         let updatedText = nsText.replacingCharacters(in: lineRange, with: updatedLine)
-        let cursor = lineRange.location + min(location - lineRange.location, updatedLine.count)
+        let cursor = lineRange.location + min(clickOffset, updatedLine.count)
         return TaskListEditResult(text: updatedText, cursorLocation: cursor)
+    }
+
+    static func taskPrefixMaxClickOffset(in line: String, match: NSTextCheckingResult) -> Int {
+        let nsLine = line as NSString
+        var maxIndex = match.range(at: 3).location + match.range(at: 3).length - 1
+        let afterBracket = maxIndex + 1
+        guard afterBracket < nsLine.length else { return maxIndex }
+
+        if nsLine.substring(with: NSRange(location: afterBracket, length: 1)) != " " {
+            return maxIndex
+        }
+
+        let bodyStart = afterBracket + 1
+        if bodyStart >= nsLine.length || nsLine.substring(from: bodyStart).isEmpty {
+            return afterBracket
+        }
+        return afterBracket
+    }
+
+    static func toggleCheckboxNear(in text: String, at location: Int) -> TaskListEditResult? {
+        if let result = toggleCheckbox(in: text, at: location) {
+            return result
+        }
+        for offset in 1...2 {
+            if let result = toggleCheckbox(in: text, at: location - offset) {
+                return result
+            }
+        }
+        return nil
     }
 
     static func insertTaskItem(in text: String, at location: Int, checked: Bool = false) -> TaskListEditResult {

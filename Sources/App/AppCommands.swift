@@ -24,8 +24,10 @@ struct AppCommands: Commands {
             Menu("Open Recent") {
                 ForEach(RecentFilesService.shared.recentFiles, id: \.path) { url in
                     Button(url.lastPathComponent) {
-                        if let document = appState.openDocument(at: url) {
-                            openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
+                        Task { @MainActor in
+                            if let document = appState.openDocument(at: url, forceReload: true) {
+                                openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
+                            }
                         }
                     }
                 }
@@ -139,6 +141,12 @@ struct AppCommands: Commands {
             .keyboardShortcut("<", modifiers: [.command, .shift])
         }
 
+        CommandGroup(replacing: .appInfo) {
+            Button("About \(Constants.appName)") {
+                AboutPanel.show()
+            }
+        }
+
         CommandGroup(replacing: .appSettings) {
             Button("Advanced Preferences…") {
                 openSettings()
@@ -187,8 +195,14 @@ struct AppCommands: Commands {
         ]
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
-            if let document = appState.openDocument(at: url) {
-                openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
+            Task { @MainActor in
+                let accessed = url.startAccessingSecurityScopedResource()
+                if let document = appState.openDocument(at: url, forceReload: true) {
+                    openWindow(id: Constants.documentWindowSceneID, value: document.snapshot.id)
+                }
+                if accessed {
+                    url.stopAccessingSecurityScopedResource()
+                }
             }
         }
     }

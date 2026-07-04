@@ -10,6 +10,38 @@ struct TaskListServiceTests {
         #expect(result.cursorLocation == 6)
     }
 
+    @Test("toggles checkbox when clicking space after bracket")
+    func toggleCheckboxAfterBracket() {
+        let source = "- [ ] Buy milk\n"
+        let spaceIndex = source.firstIndex(of: "]")!.utf16Offset(in: source) + 1
+        let toggled = TaskListService.toggleCheckbox(in: source, at: spaceIndex)
+        #expect(toggled?.text.contains("- [x] Buy milk") == true)
+    }
+
+    @Test("toggle near search finds checkbox when click is slightly imprecise")
+    func toggleNearSearch() {
+        let source = "- [ ] Buy milk\n"
+        let bracketIndex = source.firstIndex(of: "]")!.utf16Offset(in: source)
+        let toggled = TaskListService.toggleCheckboxNear(in: source, at: bracketIndex + 2)
+        #expect(toggled?.text.contains("- [x] Buy milk") == true)
+    }
+
+    @Test("toggles checkbox when clicking task marker")
+    func toggleCheckboxOnMarker() {
+        let source = "- [ ] Buy milk\n"
+        let markerIndex = source.firstIndex(of: "-")!.utf16Offset(in: source)
+        let toggled = TaskListService.toggleCheckbox(in: source, at: markerIndex)
+        #expect(toggled?.text.contains("- [x] Buy milk") == true)
+    }
+
+    @Test("does not toggle when clicking task body")
+    func ignoreBodyClick() {
+        let source = "- [ ] Buy milk\n"
+        let bodyIndex = source.firstIndex(of: "B")!.utf16Offset(in: source)
+        let toggled = TaskListService.toggleCheckbox(in: source, at: bodyIndex)
+        #expect(toggled == nil)
+    }
+
     @Test("toggles checkbox between unchecked and checked")
     func toggleCheckbox() {
         let source = "- [ ] Buy milk\n"

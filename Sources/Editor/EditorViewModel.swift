@@ -4,6 +4,8 @@ import SwiftUI
 @MainActor
 final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     @Published private(set) var snapshot: DocumentSnapshot
+    @Published private(set) var editorText: String
+    @Published private(set) var editorRevision: Int = 0
     @Published var statistics: DocumentStatistics
     @Published var viewMode: ViewMode
     @Published var findOptions = FindOptions()
@@ -38,13 +40,27 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
         self.findReplaceService = findReplaceService
         self.recentFilesService = recentFilesService
         blockDocument = BlockDocument(markdown: snapshot.content)
+        editorText = snapshot.content
         statistics = DocumentStatistics.compute(from: snapshot.content)
         viewMode = snapshot.viewMode
     }
 
     var content: String {
-        get { blockDocument.markdown }
-        set { updateContent(newValue) }
+        get { editorText }
+        set {
+            updateContent(
+                newValue,
+                cursorLocation: snapshot.cursorLocation,
+                selectionLength: snapshot.selectionLength
+            )
+        }
+    }
+
+    func ensureIntroDemoIfNeeded() {
+        guard snapshot.fileURL == nil else { return }
+        guard editorText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard PreferencesStore.shared.preferences.showIntroDemo else { return }
+        applyLoadedContent(IntroDemoContent.content, fileURL: nil, isDirty: false)
     }
 
     var displayTitle: String {
@@ -54,21 +70,33 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     func loadFromURL(_ url: URL) {
         do {
             let loaded = try documentService.load(from: url)
-            blockDocument = BlockDocument(markdown: loaded)
-            mutateSnapshot {
-                $0.fileURL = url
-                $0.content = blockDocument.markdown
-                $0.isDirty = false
-                $0.cursorLocation = 0
-                $0.selectionLength = 0
-                $0.scrollOffset = 0
-            }
-            statistics = DocumentStatistics.compute(from: blockDocument.markdown)
+            applyLoadedContent(loaded, fileURL: url, isDirty: false)
             recentFilesService.addRecentFile(url)
             recoveryService.saveRecoverySnapshot(from: snapshot)
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func reloadFromURLIfNeeded() {
+        guard let url = snapshot.fileURL else { return }
+        guard snapshot.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        loadFromURL(url)
+    }
+
+    private func applyLoadedContent(_ loaded: String, fileURL: URL?, isDirty: Bool) {
+        blockDocument = BlockDocument(markdown: loaded)
+        editorText = blockDocument.markdown
+        editorRevision += 1
+        mutateSnapshot {
+            $0.fileURL = fileURL
+            $0.content = editorText
+            $0.isDirty = isDirty
+            $0.cursorLocation = 0
+            $0.selectionLength = 0
+            $0.scrollOffset = 0
+        }
+        statistics = DocumentStatistics.compute(from: editorText)
     }
 
     func saveAs(to url: URL) {
@@ -172,12 +200,23 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
         commitBlockDocument(cursor: cursor)
     }
 
-    func toggleTaskCheckbox(at location: Int) -> TaskListEditResult? {
-        guard let cursor = blockDocument.toggleTaskCheckbox(at: location) else {
+    func toggleTaskCheckbox(at location: Int, in text: String) -> TaskListEditResult? {
+        guard let result = TaskListService.toggleCheckboxNear(in: text, at: location) else {
             return nil
         }
-        commitBlockDocument(cursor: cursor)
-        return TaskListEditResult(text: blockDocument.markdown, cursorLocation: cursor)
+
+        blockDocument.applyEditedMarkdown(result.text)
+        let markdown = blockDocument.markdown
+        editorText = markdown
+        mutateSnapshot {
+            $0.content = markdown
+            $0.cursorLocation = result.cursorLocation
+            $0.selectionLength = 0
+            $0.isDirty = true
+        }
+        statistics = DocumentStatistics.compute(from: markdown)
+        scheduleAutoSave()
+        return TaskListEditResult(text: markdown, cursorLocation: result.cursorLocation)
     }
 
     func handleListContinuation(at location: Int, text: String) -> TaskListEditResult? {
@@ -189,13 +228,15 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     }
 
     private func commitBlockDocument(cursor: Int) {
+        editorText = blockDocument.markdown
+        editorRevision += 1
         mutateSnapshot {
-            $0.content = blockDocument.markdown
+            $0.content = editorText
             $0.cursorLocation = cursor
             $0.selectionLength = 0
             $0.isDirty = true
         }
-        statistics = DocumentStatistics.compute(from: blockDocument.markdown)
+        statistics = DocumentStatistics.compute(from: editorText)
         scheduleAutoSave()
     }
 
@@ -248,10 +289,7 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
                 match: match,
                 replacement: findOptions.replacementText
             )
-            updateContent(updated)
-            mutateSnapshot {
-                $0.cursorLocation = match.range.location + (findOptions.replacementText as NSString).length
-            }
+            updateContent(updated, cursorLocation: match.range.location + (findOptions.replacementText as NSString).length)
             findStatusMessage = nil
         } catch {
             findStatusMessage = error.localizedDescription
@@ -261,7 +299,7 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     func replaceAllMatches() {
         do {
             let updated = try findReplaceService.replaceAll(in: snapshot.content, options: findOptions)
-            updateContent(updated)
+            updateContent(updated, cursorLocation: snapshot.cursorLocation)
             findStatusMessage = "All matches replaced."
         } catch {
             findStatusMessage = error.localizedDescription
@@ -270,8 +308,8 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
 
     // MARK: - EditorTextViewDelegate
 
-    func editorTextDidChange(_ text: String) {
-        updateContent(text)
+    func editorTextDidChange(_ text: String, location: Int, selectionLength: Int) {
+        updateContent(text, cursorLocation: location, selectionLength: selectionLength)
     }
 
     func editorSelectionDidChange(location: Int, length: Int) {
@@ -290,21 +328,27 @@ final class EditorViewModel: ObservableObject, EditorTextViewDelegate {
     }
 
     private func mutateSnapshot(_ mutation: (inout DocumentSnapshot) -> Void) {
-        mutation(&snapshot)
-        objectWillChange.send()
+        var updated = snapshot
+        mutation(&updated)
+        snapshot = updated
     }
 
-    private func updateContent(_ text: String) {
-        let previousCursor = snapshot.cursorLocation
+    private func updateContent(
+        _ text: String,
+        cursorLocation: Int,
+        selectionLength: Int = 0
+    ) {
         blockDocument.applyEditedMarkdown(text)
         let markdown = blockDocument.markdown
         let cursor = markdown == text
-            ? previousCursor
-            : DocumentStructureService.mapCursor(from: text, to: markdown, cursor: previousCursor)
+            ? cursorLocation
+            : DocumentStructureService.mapCursor(from: text, to: markdown, cursor: cursorLocation)
 
+        editorText = markdown
         mutateSnapshot {
             $0.content = markdown
             $0.cursorLocation = cursor
+            $0.selectionLength = selectionLength
             $0.isDirty = true
         }
         statistics = DocumentStatistics.compute(from: markdown)

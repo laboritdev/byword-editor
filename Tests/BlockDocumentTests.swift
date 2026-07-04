@@ -4,6 +4,24 @@ import Testing
 
 @Suite("BlockDocument")
 struct BlockDocumentTests {
+    @Test("deleting last plain line character clears body")
+    func deleteLastPlainCharacter() {
+        var document = BlockDocument(markdown: "notificacao")
+        document.applyEditedMarkdown("n")
+        #expect(document.markdown == "n")
+        document.applyEditedMarkdown("")
+        #expect(document.markdown == "")
+    }
+
+    @Test("deleting last task body character clears item body")
+    func deleteLastTaskBodyCharacter() {
+        var document = BlockDocument(markdown: "- [ ] notificacao")
+        document.applyEditedMarkdown("- [ ] n")
+        #expect(document.markdown == "- [ ] n")
+        document.applyEditedMarkdown("- [ ] ")
+        #expect(document.markdown == "- [ ] ")
+    }
+
     @Test("stores numbered list as a single block with indexed items")
     func numberedBlock() {
         var document = BlockDocument(markdown: "1. one\n2. two\n3. three")

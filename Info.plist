@@ -22,6 +22,8 @@
     <string>1</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
+    <key>LabWordGitRevision</key>
+    <string>dev</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>CFBundleDocumentTypes</key>

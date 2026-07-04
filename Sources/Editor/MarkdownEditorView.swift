@@ -74,7 +74,7 @@ struct MarkdownEditorView: View {
         GeometryReader { geometry in
             NSTextViewRepresentable(
                 text: Binding(
-                    get: { viewModel.content },
+                    get: { viewModel.editorText },
                     set: { viewModel.content = $0 }
                 ),
                 configuration: editorConfiguration(containerWidth: geometry.size.width),
@@ -82,7 +82,7 @@ struct MarkdownEditorView: View {
                 selectionLength: viewModel.snapshot.selectionLength,
                 scrollOffset: viewModel.snapshot.scrollOffset,
                 delegate: viewModel,
-                onToggleCheckbox: { viewModel.toggleTaskCheckbox(at: $0) },
+                onToggleCheckbox: { viewModel.toggleTaskCheckbox(at: $0, in: $1) },
                 onListContinuation: { viewModel.handleListContinuation(at: $0, text: $1) }
             )
         }
@@ -120,7 +120,7 @@ struct MarkdownEditorView: View {
 
     private var cursorStatusLabel: String {
         EditorCursorPosition.from(
-            text: viewModel.content,
+            text: viewModel.editorText,
             location: viewModel.snapshot.cursorLocation,
             selectionLength: viewModel.snapshot.selectionLength
         ).statusLabel
@@ -164,12 +164,16 @@ struct MarkdownEditorView: View {
             columnWidth: prefs.columnWidth,
             syntaxColors: colors,
             syntaxHighlightMode: prefs.syntaxHighlightMode,
-            isDarkMode: resolvedColorScheme == .dark
+            isDarkMode: resolvedColorScheme == .dark,
+            colorTheme: prefs.colorTheme
         )
     }
 
     private var resolvedColorScheme: ColorScheme {
-        preferencesStore.preferences.appearanceMode.colorScheme ?? colorScheme
+        EditorAppearance.resolvedColorScheme(
+            appearanceMode: preferencesStore.preferences.appearanceMode,
+            environment: colorScheme
+        )
     }
 
     private var errorBinding: Binding<Bool> {
@@ -196,7 +200,10 @@ struct DocumentWindowView: View {
     }
 
     private var resolvedColorScheme: ColorScheme {
-        preferencesStore.preferences.appearanceMode.colorScheme ?? colorScheme
+        EditorAppearance.resolvedColorScheme(
+            appearanceMode: preferencesStore.preferences.appearanceMode,
+            environment: colorScheme
+        )
     }
 
     private var editorBackground: Color {

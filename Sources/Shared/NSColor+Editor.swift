@@ -2,7 +2,15 @@ import AppKit
 
 extension NSColor {
     var editorFixed: NSColor {
-        usingColorSpace(.deviceRGB) ?? self
+        guard let rgb = usingColorSpace(.sRGB) ?? usingColorSpace(.deviceRGB) else {
+            return self
+        }
+        return NSColor(
+            srgbRed: rgb.redComponent,
+            green: rgb.greenComponent,
+            blue: rgb.blueComponent,
+            alpha: rgb.alphaComponent
+        )
     }
 
     func isEditorEqual(to other: NSColor) -> Bool {
