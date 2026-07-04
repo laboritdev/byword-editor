@@ -41,7 +41,8 @@ chmod +x "$APP_BUNDLE/Contents/MacOS/${EXECUTABLE_NAME}"
 ICONSET="$ROOT/Resources/AppIcon.iconset"
 ICNS="$ROOT/Resources/AppIcon.icns"
 if [[ -d "$ICONSET" ]]; then
-  iconutil --convert icns --output "$ICNS" "$ICONSET"
+  chmod +x "$ROOT/Scripts/generate-app-icon.sh"
+  "$ROOT/Scripts/generate-app-icon.sh"
   cp "$ICNS" "$APP_BUNDLE/Contents/Resources/"
 fi
 
