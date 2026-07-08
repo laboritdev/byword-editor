@@ -1,0 +1,33 @@
+{
+  "name": "labword",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LabWord — minimalist Markdown editor",
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:desktop": "turbo dev --filter=@labword/desktop",
+    "dev:web": "turbo dev --filter=@labword/web",
+    "build": "turbo build",
+    "test": "turbo test",
+    "typecheck": "turbo typecheck",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "eslint": "^9.21.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "turbo": "^2.5.4",
+    "typescript-eslint": "^8.26.0"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=10"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
+  }
+}

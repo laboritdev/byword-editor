@@ -1,21 +1,26 @@
-# State
+# Project State
+
+**Last updated:** 2026-07-04
+
+## Current focus
+
+Electron desktop app is the sole implementation. Swift/native code removed.
 
 ## Decisions
 
-- NSTextView via NSViewRepresentable for native editing performance
-- swift-markdown for preview/export HTML generation
-- Session and recovery state stored in Application Support JSON
-- Regex-based incremental syntax highlighting on visible range
+| Date | Decision | Rationale |
+|------|----------|-----------|
+| 2026-07-04 | Remove Swift `native/` | Electron UX preferred; Agent terminal and overlays work better in web stack |
+| 2026-07-04 | Monorepo simplified to `desktop/` | Single stack, simpler CI and onboarding |
 
-## Blockers
+## Desktop status
 
-_None_
+- Editor, preview, preferences, help, rename, unsaved prompt
+- Agent terminal with help aliases (`?`, `hs`, `hc`, `hm`)
+- Formatting palette (⌘K)
+- Focus mode, font shortcuts, menu IPC
 
-## Deferred Ideas
+## Next
 
-- Custom font picker with live preview
-- Export styling templates
-
-## Preferences
-
-- User requested full Byword-inspired feature set in v1
+- AI providers in Agent
+- Electron release packaging / Homebrew cask for desktop build

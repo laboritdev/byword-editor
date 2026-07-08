@@ -1,0 +1,17 @@
+.git
+.github
+.specs
+assets/references
+native
+Resources
+Scripts
+UITests
+**/.turbo
+**/dist
+**/node_modules
+apps/desktop
+packages/platform-electron
+**/*.md
+**/.DS_Store
+.env
+.env.*

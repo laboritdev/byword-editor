@@ -1,37 +1,41 @@
-# LabWord — developer shortcuts for Swift Package Manager on macOS
+# LabWord (Turborepo)
 
-SWIFT      := xcrun swift
-PACKAGE    := Package.swift
-EXECUTABLE := LabWord
-
-.PHONY: help build test run clean xcode
+.PHONY: help install dev dev-desktop dev-web test lint build typecheck
 
 .DEFAULT_GOAL := help
 
-help: ## Show available targets
-	@echo "LabWord — available targets:"
+help:
+	@echo "LabWord monorepo (Turbo + pnpm)"
 	@echo ""
-	@grep -E '^[a-zA-Z0-9_-]+:.*##' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
-	@echo ""
+	@echo "  make install       pnpm install"
+	@echo "  make dev           dev all apps"
+	@echo "  make dev-desktop   Electron app"
+	@echo "  make dev-web       Web SPA"
+	@echo "  make test          turbo test"
+	@echo "  make typecheck     turbo typecheck"
+	@echo "  make lint          turbo lint"
+	@echo "  make build         turbo build"
 
-build: ## Build the project (xcrun swift build)
-	$(SWIFT) build
+install:
+	pnpm install
 
-test: ## Run unit tests (xcrun swift test)
-	$(SWIFT) test
+dev:
+	pnpm dev
 
-run: build ## Build and run the LabWord executable
-	@bin_dir="$$($(SWIFT) build --show-bin-path)"; \
-	echo "Launching $$bin_dir/$(EXECUTABLE)…"; \
-	exec "$$bin_dir/$(EXECUTABLE)"
+dev-desktop:
+	pnpm dev:desktop
 
-clean: ## Remove build artifacts (swift package clean)
-	$(SWIFT) package clean
+dev-web:
+	pnpm dev:web
 
-xcode: ## Open Package.swift in Xcode
-	open $(PACKAGE)
+test:
+	pnpm test
 
-release-local: ## Build versioned .app zip locally (VERSION=1.0.0 make release-local)
-	chmod +x Scripts/build-app.sh
-	./Scripts/build-app.sh $(if $(VERSION),$(VERSION),$(shell cat VERSION | tr -d '[:space:')) $(if $(ARCH),$(ARCH),arm64)
+typecheck:
+	pnpm typecheck
+
+lint:
+	pnpm lint
+
+build:
+	pnpm build

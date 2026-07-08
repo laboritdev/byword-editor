@@ -1,0 +1,31 @@
+# LabWord web — Hostinger VPS / Traefik
+# Set LABWORD_HOST in project environment (e.g. labword.example.com)
+
+services:
+  labword-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${LABWORD_IMAGE:-labword-web:latest}
+    restart: unless-stopped
+    networks:
+      - traefik-proxy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-proxy
+      - traefik.http.routers.labword-web.rule=Host(`${LABWORD_HOST}`)
+      - traefik.http.routers.labword-web.entrypoints=websecure
+      - traefik.http.routers.labword-web.tls=true
+      - traefik.http.routers.labword-web.tls.certresolver=letsencrypt
+      - traefik.http.routers.labword-web.service=labword-web
+      - traefik.http.routers.labword-web.middlewares=devpipe-ws-headers@docker
+      - traefik.http.services.labword-web.loadbalancer.server.port=80
+      - traefik.http.routers.labword-web-http.rule=Host(`${LABWORD_HOST}`)
+      - traefik.http.routers.labword-web-http.entrypoints=web
+      - traefik.http.routers.labword-web-http.middlewares=labword-redirect-https@docker
+      - traefik.http.middlewares.labword-redirect-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.labword-redirect-https.redirectscheme.permanent=true
+
+networks:
+  traefik-proxy:
+    external: true

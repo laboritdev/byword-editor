@@ -1,4 +1,4 @@
-# BywordEditor Specification
+# LabWord Specification
 
 ## Problem Statement
 

@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@labword/app": ["../../packages/app/src/index.ts"],
+      "@labword/app/*": ["../../packages/app/src/*"],
+      "@labword/domain/*": ["../../packages/domain/src/*"],
+      "@labword/platform": ["../../packages/platform/src/index.ts"],
+      "@labword/platform-electron/*": ["../../packages/platform-electron/src/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "electron/preload/**/*.ts"
+  ]
+}

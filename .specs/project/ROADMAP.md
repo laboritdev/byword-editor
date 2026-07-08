@@ -1,17 +1,12 @@
 # Roadmap
 
-## v1.0 — Core Editor (current)
+## Desktop (`desktop/`)
 
-- [x] Project scaffolding (SPM, MVVM)
-- [x] NSTextView editor with syntax highlighting
-- [x] File operations and auto-save
-- [x] Session restoration and recovery
-- [x] Preview, export, print
-- [x] Preferences and themes
-- [x] Unit tests for services
-
-## Future (deferred)
-
-- [ ] Xcode project wrapper for App Store distribution
-- [ ] UITests for window and menu flows
-- [ ] Custom export styling
+- [x] Scaffold Electron + TypeScript strict
+- [x] CodeMirror editor + markdown preview
+- [x] Agent terminal + command router
+- [x] Help overlays + formatting palette
+- [x] File open/save/rename + unsaved changes
+- [x] Focus mode + preferences
+- [ ] AI providers (Ollama, OpenAI, Anthropic)
+- [ ] Release packaging (signed .app, Homebrew cask)

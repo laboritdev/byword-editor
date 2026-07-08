@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@labword/domain/*": ["../domain/src/*"],
+      "@labword/platform": ["../platform/src/index.ts"],
+      "@labword/platform/*": ["../platform/src/*"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}
