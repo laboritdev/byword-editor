@@ -3,10 +3,7 @@
 
 services:
   labword-web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: ${LABWORD_IMAGE:-labword-web:latest}
+    image: ${LABWORD_IMAGE:-ghcr.io/laboritdev/labword/web:latest}
     restart: unless-stopped
     networks:
       - traefik-proxy
