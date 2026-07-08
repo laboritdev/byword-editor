@@ -48,12 +48,3 @@ jobs:
             ghcr.io/laboritdev/labword/web:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Make package public
-        run: |
-          gh api \
-            --method PATCH \
-            "/orgs/laboritdev/packages/container/labword%2Fweb" \
-            -f visibility=public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
