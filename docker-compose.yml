@@ -3,7 +3,7 @@
 
 services:
   labword-web:
-    image: ${LABWORD_IMAGE:-ghcr.io/laboritdev/labword/web:latest}
+    image: ${LABWORD_IMAGE:-ghcr.io/panngo/labword/web:latest}
     restart: unless-stopped
     networks:
       - traefik-proxy
