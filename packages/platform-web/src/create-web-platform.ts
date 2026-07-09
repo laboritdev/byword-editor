@@ -10,16 +10,31 @@ import type { PlatformPort } from '@labword/platform';
 
 const MARKDOWN_TYPES: readonly string[] = ['.md', '.markdown', '.txt'];
 
+type FilePickerAcceptType = {
+  description: string;
+  accept: Record<string, string[]>;
+};
+
+type OpenFilePickerOptions = {
+  multiple?: boolean;
+  types?: FilePickerAcceptType[];
+};
+
+type SaveFilePickerOptions = {
+  suggestedName?: string;
+  types?: FilePickerAcceptType[];
+};
+
 let currentFileHandle: FileSystemFileHandle | null = null;
 
 function hasOpenFilePicker(windowObject: Window): windowObject is Window & {
-  showOpenFilePicker: (options: unknown) => Promise<FileSystemFileHandle[]>;
+  showOpenFilePicker: (options: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]>;
 } {
   return 'showOpenFilePicker' in windowObject;
 }
 
 function hasSaveFilePicker(windowObject: Window): windowObject is Window & {
-  showSaveFilePicker: (options: unknown) => Promise<FileSystemFileHandle>;
+  showSaveFilePicker: (options: SaveFilePickerOptions) => Promise<FileSystemFileHandle>;
 } {
   return 'showSaveFilePicker' in windowObject;
 }
@@ -101,7 +116,7 @@ async function openWithFilePicker(): Promise<DocumentSnapshot | null> {
   }
 }
 
-async function saveWithDownload(snapshot: DocumentSnapshot, fileName: string): Promise<DocumentSnapshot> {
+function saveWithDownload(snapshot: DocumentSnapshot, fileName: string): Promise<DocumentSnapshot> {
   const blob = new Blob([snapshot.content], { type: 'text/markdown;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const anchor = window.document.createElement('a');
@@ -109,7 +124,7 @@ async function saveWithDownload(snapshot: DocumentSnapshot, fileName: string): P
   anchor.download = fileName;
   anchor.click();
   URL.revokeObjectURL(url);
-  return {
+  return Promise.resolve({
     ...snapshot,
     filePath: asFilePath(fileName),
     isDirty: false,
@@ -118,7 +133,7 @@ async function saveWithDownload(snapshot: DocumentSnapshot, fileName: string): P
       filePath: asFilePath(fileName),
       isDirty: false,
     }),
-  };
+  });
 }
 
 async function saveWithFilePicker(snapshot: DocumentSnapshot): Promise<DocumentSnapshot | null> {
@@ -176,32 +191,37 @@ export function createWebPlatform(): PlatformPort {
 
     saveDocumentAs: saveWithFilePicker,
 
-    async renameDocument(snapshot: DocumentSnapshot, newName: string): Promise<DocumentSnapshot | null> {
+    renameDocument(snapshot: DocumentSnapshot, newName: string): Promise<DocumentSnapshot | null> {
       const trimmed = newName.trim();
       if (trimmed.length === 0) {
-        return null;
+        return Promise.resolve(null);
       }
       currentFileHandle = null;
       const renamed: DocumentSnapshot = {
         ...snapshot,
         filePath: asFilePath(trimmed),
       };
-      return {
+      return Promise.resolve({
         ...renamed,
         title: displayTitleFromSnapshot(renamed),
-      };
+      });
     },
 
-    async printDocument(snapshot: DocumentSnapshot): Promise<void> {
+    printDocument(snapshot: DocumentSnapshot): Promise<void> {
       const html = renderMarkdownPreviewDocument(snapshot.content, snapshot.title);
       const printWindow = window.open('', '_blank');
       if (printWindow === null) {
-        return;
+        return Promise.resolve();
       }
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+      printWindow.location.href = blobUrl;
+      printWindow.onload = (): void => {
+        printWindow.focus();
+        printWindow.print();
+        URL.revokeObjectURL(blobUrl);
+      };
+      return Promise.resolve();
     },
 
     async toggleFullscreen(): Promise<void> {

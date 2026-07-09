@@ -52,15 +52,16 @@ function loadDockIcon(): NativeImage | undefined {
 }
 
 function applyDockIcon(icon: NativeImage): void {
-  if (process.platform !== 'darwin' || app.dock === undefined) {
+  if (process.platform !== 'darwin') {
     return;
   }
 
   try {
     // Full-bleed 1024×1024 PNG; macOS applies the squircle mask in the Dock.
     app.dock.setIcon(icon);
-  } catch (error: unknown) {
-    console.warn('Failed to set dock icon:', error);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('Failed to set dock icon:', message);
   }
 }
 
