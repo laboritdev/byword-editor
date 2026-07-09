@@ -44,7 +44,15 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['**/out/**', '**/dist/**', '**/node_modules/**', 'eslint.config.mjs'],
+    ignores: [
+      '**/out/**',
+      '**/dist/**',
+      '**/node_modules/**',
+      'eslint.config.mjs',
+      'apps/desktop/eslint.config.mjs',
+      '**/vitest.config.ts',
+      '**/tests/**',
+    ],
   },
   {
     files: ['apps/desktop/electron/preload/**/*.ts'],
